@@ -1,8 +1,6 @@
 // Utility Functions for GenziKart E-commerce
 
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'https://gen-z-backend.vercel.app/api'
-    : '/api';
+const API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 /**
  * Formats an image URL for display.

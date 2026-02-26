@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services | GenziKart.in - Trust & Excellence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="antialiased bg-white">
+    <!-- Navbar (Integrated from index.html) -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="flex items-center">
+                        <img src="images/logo.jpg" alt="GENZIKART Logo" class="h-10 w-auto" />
+                    </a>
+                </div>
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="services.html" class="nav-link active">Services</a>
+                    <a href="products.html" class="nav-link">Products</a>
+                    <a href="support.html" class="nav-link">Support</a>
+                </div>
+                <!-- Icons -->
+                <div class="flex items-center space-x-4">
+                    <a href="cart.html" class="relative nav-icon">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cartBadge" class="cart-badge">0</span>
+                    </a>
+                    <!-- User Profile -->
+                    <div class="relative" id="userDropdown">
+                        <button class="nav-icon" data-testid="user-profile-btn">
+                            <i class="fas fa-user text-xl"></i>
+                        </button>
+                        <div id="dropdownMenu" class="dropdown-menu w-64 p-0 overflow-hidden">
+                            <!-- User Info Section (Only visible when logged in) -->
+                            <div id="userLinks" style="display: none;">
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 border-b border-slate-100">
+                                    <div class="flex items-center gap-3">
+                                        <div id="avatarDisplay"
+                                            class="text-3xl bg-white w-12 h-12 rounded-full flex items-center justify-center shadow-sm">
+                                            🧑‍💼</div>
+                                        <div class="overflow-hidden">
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                                Account</p>
+                                            <p id="userEmailDisplay" class="text-sm font-bold text-slate-700 truncate">
+                                                user@example.com</p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="avatar-grid flex justify-between mt-3 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                        <!-- Avatars injected via main.js -->
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <a href="profile.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-user-circle text-slate-400 group-hover:text-amber-500"></i>
+                                        My Profile
+                                    </a>
+                                    <a href="my-orders.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-box text-slate-400 group-hover:text-amber-500"></i>
+                                        My Orders
+                                    </a>
+                                    <a href="wishlist.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-heart text-slate-400 group-hover:text-amber-500"></i>
+                                        Wishlist
+                                    </a>
+                                    <hr class="my-2 border-slate-100">
+                                    <a href="#" id="logoutBtn"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors group">
+                                        <i class="fas fa-sign-out-alt text-red-400 group-hover:text-red-500"></i>
+                                        Logout
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Login Section (Only visible when logged out) -->
+                            <div id="authLinks" style="display: block;" class="p-4 text-center">
+                                <p class="text-sm text-slate-500 mb-3">Welcome to Genzikart</p>
+                                <a href="login.html"
+                                    class="block w-full bg-amber-500 text-white py-2 rounded-lg font-bold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30">
+                                    Login / Register
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <main class="pt-24 pb-16">
+        <!-- 1. HERO SECTION -->
+        <section class="max-w-7xl mx-auto px-4 py-20 text-center">
+            <h1 class="text-5xl md:text-6xl font-black text-slate-900 mb-6 leading-tight">
+                Shopping Made <span class="gradient-text">Simple, Fast & Secure</span>
+            </h1>
+            <p class="text-xl text-slate-500 max-w-2xl mx-auto mb-10">
+                Experience the GenziKart promise: Effortless delivery, trusted payments, hassle-free returns, and 24/7
+                dedicated support.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="products.html"
+                    class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-lg shadow-xl shadow-slate-900/20 hover:scale-105 transition-all">
+                    Browse Products
+                </a>
+                <a href="#how-it-works"
+                    class="bg-white border-2 border-slate-200 text-slate-700 px-10 py-4 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all">
+                    Learn More
+                </a>
+            </div>
+        </section>
+
+        <!-- 2. CORE SERVICES -->
+        <section class="py-20 bg-slate-50">
+            <div class="max-w-7xl mx-auto px-4 text-center">
+                <h2 class="text-slate-400 text-sm font-black uppercase tracking-widest mb-4">Core Services</h2>
+                <h3 class="text-4xl font-black text-slate-900 mb-16">Trust Drivers Built for You</h3>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- Delivery -->
+                    <div
+                        class="service-card bg-white p-8 rounded-3xl transition-all duration-300 text-left border border-slate-100">
+                        <div
+                            class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                            <i class="fas fa-truck-fast text-2xl"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-900 mb-3">Reliable Delivery</h4>
+                        <p class="text-slate-500 text-sm mb-4 leading-relaxed">Pan-India coverage with real-time
+                            tracking. Reach your doorstep in 3-5 days.</p>
+                        <ul class="text-xs font-bold text-slate-400 space-y-2">
+                            <li><i class="fas fa-check text-blue-500 mr-2"></i> Real-time Tracking</li>
+                            <li><i class="fas fa-check text-blue-500 mr-2"></i> Safe Packaging</li>
+                        </ul>
+                    </div>
+
+                    <!-- Returns -->
+                    <div
+                        class="service-card bg-white p-8 rounded-3xl transition-all duration-300 text-left border border-slate-100">
+                        <div
+                            class="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                            <i class="fas fa-rotate-left text-2xl"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-900 mb-3">Easy Returns</h4>
+                        <p class="text-slate-500 text-sm mb-4 leading-relaxed">Not happy? No problem. Hassle-free 7-day
+                            return policy with instant support.</p>
+                        <ul class="text-xs font-bold text-slate-400 space-y-2">
+                            <li><i class="fas fa-check text-purple-500 mr-2"></i> 7-Day Window</li>
+                            <li><i class="fas fa-check text-purple-500 mr-2"></i> Quick Pickups</li>
+                        </ul>
+                    </div>
+
+                    <!-- Payments -->
+                    <div
+                        class="service-card bg-white p-8 rounded-3xl transition-all duration-300 text-left border border-slate-100">
+                        <div
+                            class="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mb-6">
+                            <i class="fas fa-shield-halved text-2xl"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-900 mb-3">Secure Payments</h4>
+                        <p class="text-slate-500 text-sm mb-4 leading-relaxed">Every transaction is encrypted. Pay via
+                            UPI, Cards, or Cash on Delivery.</p>
+                        <ul class="text-xs font-bold text-slate-400 space-y-2">
+                            <li><i class="fas fa-check text-green-500 mr-2"></i> UPI & Cards</li>
+                            <li><i class="fas fa-check text-green-500 mr-2"></i> Fraud Protection</li>
+                        </ul>
+                    </div>
+
+                    <!-- Support -->
+                    <div
+                        class="service-card bg-white p-8 rounded-3xl transition-all duration-300 text-left border border-slate-100">
+                        <div
+                            class="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+                            <i class="fas fa-headset text-2xl"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-900 mb-3">Expert Support</h4>
+                        <p class="text-slate-500 text-sm mb-4 leading-relaxed">Human-led support via WhatsApp, Email &
+                            Chat. We resolve issues in hours.</p>
+                        <ul class="text-xs font-bold text-slate-400 space-y-2">
+                            <li><i class="fas fa-check text-amber-500 mr-2"></i> WhatsApp Integration</li>
+                            <li><i class="fas fa-check text-amber-500 mr-2"></i> 24/7 Monitoring</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. WHY CHOOSE US -->
+        <section class="py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="bg-slate-900 rounded-[3rem] p-12 md:p-20 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full"></div>
+                    <div class="relative z-10 text-center md:text-left grid md:grid-cols-2 gap-12 items-center">
+                        <div>
+                            <h2 class="text-amber-500 font-black uppercase tracking-widest text-sm mb-4">The GenziKart
+                                Edge</h2>
+                            <h3 class="text-4xl font-black text-white mb-8 leading-tight">Why Smart Shoppers Choose Us?
+                            </h3>
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-amber-500">
+                                        <i class="fas fa-certificate"></i>
+                                    </div>
+                                    <span class="text-white font-bold text-lg">100% Genuine Products Only</span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-amber-500">
+                                        <i class="fas fa-tags"></i>
+                                    </div>
+                                    <span class="text-white font-bold text-lg">Best Price & Quality Guarantee</span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-amber-500">
+                                        <i class="fas fa-box-open"></i>
+                                    </div>
+                                    <span class="text-white font-bold text-lg">Eco-Friendly & Secure Packaging</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="bg-white/5 p-8 rounded-3xl border border-white/10 text-center">
+                                <h4 class="text-4xl font-black text-amber-500 mb-2">10k+</h4>
+                                <p class="text-slate-400 text-sm font-bold">Orders Delivered</p>
+                            </div>
+                            <div class="bg-white/5 p-8 rounded-3xl border border-white/10 text-center">
+                                <h4 class="text-4xl font-black text-amber-500 mb-2">4.8★</h4>
+                                <p class="text-slate-400 text-sm font-bold">User Rating</p>
+                            </div>
+                            <div class="bg-white/5 p-8 rounded-3xl border border-white/10 text-center">
+                                <h4 class="text-4xl font-black text-amber-500 mb-2">98%</h4>
+                                <p class="text-slate-400 text-sm font-bold">Satisfaction Rate</p>
+                            </div>
+                            <div class="bg-white/5 p-8 rounded-3xl border border-white/10 text-center">
+                                <h4 class="text-4xl font-black text-amber-500 mb-2">24h</h4>
+                                <p class="text-slate-400 text-sm font-bold">Avg. Resolution</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. PROBLEM vs SOLUTION -->
+        <section class="py-20 bg-slate-50">
+            <div class="max-w-7xl mx-auto px-4 text-center">
+                <h2 class="text-slate-400 text-sm font-black uppercase tracking-widest mb-4">Honesty Policy</h2>
+                <h3 class="text-4xl font-black text-slate-900 mb-16">Your Concerns, Our Solutions</h3>
+
+                <div
+                    class="max-w-4xl mx-auto grid md:grid-cols-2 gap-0 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200">
+                    <!-- Problems -->
+                    <div class="bg-white p-12 text-left border-r border-slate-100">
+                        <div
+                            class="flex items-center gap-2 text-red-500 font-black mb-8 uppercase tracking-widest text-sm">
+                            <i class="fas fa-circle-xmark"></i> Common Issues
+                        </div>
+                        <ul class="space-y-6">
+                            <li class="flex items-center gap-4 text-slate-500 font-bold italic">
+                                <span>Fake products in market</span>
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-500 font-bold italic">
+                                <span>Late or untracked delivery</span>
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-500 font-bold italic">
+                                <span>Complex refund journeys</span>
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-500 font-bold italic">
+                                <span>Risky payment gateways</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Solutions -->
+                    <div class="bg-amber-500 p-12 text-left">
+                        <div
+                            class="flex items-center gap-2 text-slate-900 font-black mb-8 uppercase tracking-widest text-sm">
+                            <i class="fas fa-circle-check"></i> GenziKart Way
+                        </div>
+                        <ul class="space-y-6">
+                            <li class="flex items-center gap-4 text-slate-900 font-black">
+                                <i class="fas fa-check-circle"></i> 100% Brand Verified
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-900 font-black">
+                                <i class="fas fa-check-circle"></i> GPS Tracking (SMS Alert)
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-900 font-black">
+                                <i class="fas fa-check-circle"></i> 1-Click Support Claim
+                            </li>
+                            <li class="flex items-center gap-4 text-slate-900 font-black">
+                                <i class="fas fa-check-circle"></i> PCI-DSS Secure Checkout
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. HOW IT WORKS TIMELINE -->
+        <section id="how-it-works" class="py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4 text-center">
+                <h3 class="text-4xl font-black text-slate-900 mb-20">Transparent Order Journey</h3>
+
+                <div class="flex flex-col md:flex-row justify-between items-start gap-12 step-line">
+                    <div class="step-node flex-1 text-center bg-white px-4">
+                        <div
+                            class="w-16 h-16 bg-slate-900 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-slate-900/30">
+                            <i class="fas fa-shopping-bag"></i>
+                        </div>
+                        <h5 class="text-lg font-black text-slate-900 mb-2">1. Order Placed</h5>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Instant SMS/Email Confirmation</p>
+                    </div>
+
+                    <div class="step-node flex-1 text-center bg-white px-4">
+                        <div
+                            class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <h5 class="text-lg font-black text-slate-900 mb-2">2. Quality Check</h5>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Rigorous testing before packing</p>
+                    </div>
+
+                    <div class="step-node flex-1 text-center bg-white px-4">
+                        <div
+                            class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-truck-fast"></i>
+                        </div>
+                        <h5 class="text-lg font-black text-slate-900 mb-2">3. Shipped</h5>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Live tracking ID generated</p>
+                    </div>
+
+                    <div class="step-node flex-1 text-center bg-white px-4">
+                        <div
+                            class="w-16 h-16 bg-amber-500 text-slate-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-hand-holding-heart"></i>
+                        </div>
+                        <h5 class="text-lg font-black text-slate-900 mb-2">4. Delivered</h5>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Hassle-free handover</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. FINAL ASSISTANCE CALL -->
+        <section class="py-20 bg-slate-50 relative overflow-hidden">
+            <div class="max-w-4xl mx-auto px-4 text-center">
+                <div
+                    class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[3rem] p-12 text-white shadow-2xl shadow-blue-500/20">
+                    <h3 class="text-3xl font-black mb-6">Still have questions?</h3>
+                    <p class="text-blue-100 mb-10 text-lg">Our trust advisors are available 24/7 to help you make the
+                        right choice.</p>
+                    <div class="grid sm:grid-cols-3 gap-4">
+                        <a href="https://wa.me/9536109375"
+                            class="bg-white/10 hover:bg-white/20 p-6 rounded-3xl border border-white/20 transition-all group">
+                            <i class="fab fa-whatsapp text-3xl mb-4 group-hover:scale-110 transition-transform"></i>
+                            <p class="font-bold">WhatsApp</p>
+                        </a>
+                        <a href="mailto:support@genzikart.in"
+                            class="bg-white/10 hover:bg-white/20 p-6 rounded-3xl border border-white/20 transition-all group">
+                            <i
+                                class="fas fa-envelope-open-text text-3xl mb-4 group-hover:scale-110 transition-transform"></i>
+                            <p class="font-bold">Email Support</p>
+                        </a>
+                        <a href="track-order.html"
+                            class="bg-amber-500 text-slate-900 p-6 rounded-3xl transition-all group">
+                            <i class="fas fa-location-dot text-3xl mb-4 group-hover:scale-110 transition-transform"></i>
+                            <p class="font-bold">Track Order</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer (Integrated from index.html) -->
+    <footer class="bg-slate-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">GenziKart</h3>
+                    <p class="text-slate-400">Premium phone protection</p>
+                    <p class="text-slate-400 mt-2" id="liveTime"></p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="index.html" class="footer-link">Home</a></li>
+                        <li><a href="products.html" class="footer-link">Products</a></li>
+                        <li><a href="cart.html" class="footer-link">Cart</a></li>
+                        <li><a href="support.html" class="footer-link">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-2 text-slate-400">
+                        <li><a href="privacy.html" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                        <li><a href="terms.html" class="hover:text-white transition-colors">Terms & Conditions</a></li>
+                        <li><a href="refund.html" class="hover:text-white transition-colors">Refund & Return</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Follow Us</h4>
+                    <div class="flex gap-4">
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 pt-8 text-center text-slate-400 font-bold">
+                <p>&copy; 2026 Genzikart.in. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/services.js"></script>
+</body>
+
+</html>

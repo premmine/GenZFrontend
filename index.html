@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Phone Cases | GenziKart </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="antialiased">
+    <!-- ============================================================
+         NAVIGATION SECTION 
+         (Responsive navbar with user profile dropdown)
+         ============================================================ -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+
+
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="flex items-center">
+                        <img src="images/logo.jpg" alt="GENZIKART Logo" class="h-10 w-auto" />
+                    </a>
+                </div>
+
+
+                <!-- <div class="flex-shrink-0">
+                    <a href="index.html" class="text-2xl font-bold text-slate-800">GenziKart</a>
+                </div> -->
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class="nav-link active">Home</a>
+                    <a href="services.html" class="nav-link">Services</a>
+                    <a href="products.html" class="nav-link">Products</a>
+                    <a href="support.html" class="nav-link">Support</a>
+                </div>
+
+                <!-- Right Icons -->
+                <div class="flex items-center space-x-4">
+                    <!-- Search -->
+                    <div class="hidden md:block relative">
+                        <input type="text" id="searchInput" placeholder="Search products..."
+                            class="w-48 px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:border-amber-500 transition-colors">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    </div>
+
+                    <!-- Cart -->
+                    <a href="cart.html" class="relative nav-icon" data-testid="cart-icon">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cartBadge" class="cart-badge">0</span>
+                    </a>
+
+                    <!-- WhatsApp -->
+                    <a href="https://wa.me/9536109375" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
+                        <i class="fab fa-whatsapp text-xl text-green-500"></i>
+                    </a>
+
+                    <!-- User Profile -->
+                    <div class="relative" id="userDropdown">
+                        <button class="nav-icon" data-testid="user-profile-btn">
+                            <i class="fas fa-user text-xl"></i>
+                        </button>
+                        <div id="dropdownMenu" class="dropdown-menu w-64 p-0 overflow-hidden">
+                            <!-- User Info Section (Only visible when logged in) -->
+                            <div id="userLinks" style="display: none;">
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 border-b border-slate-100">
+                                    <div class="flex items-center gap-3">
+                                        <div id="avatarDisplay"
+                                            class="text-3xl bg-white w-12 h-12 rounded-full flex items-center justify-center shadow-sm">
+                                            🧑‍💼</div>
+                                        <div class="overflow-hidden">
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                                Account</p>
+                                            <p id="userEmailDisplay" class="text-sm font-bold text-slate-700 truncate">
+                                                user@example.com</p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="avatar-grid flex justify-between mt-3 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                        <!-- Avatars injected via main.js -->
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <a href="profile.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-user-circle text-slate-400 group-hover:text-amber-500"></i>
+                                        My Profile
+                                    </a>
+                                    <a href="my-orders.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-box text-slate-400 group-hover:text-amber-500"></i>
+                                        My Orders
+                                    </a>
+                                    <a href="wishlist.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-heart text-slate-400 group-hover:text-amber-500"></i>
+                                        Wishlist
+                                    </a>
+                                    <hr class="my-2 border-slate-100">
+                                    <a href="#" id="logoutBtn"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors group">
+                                        <i class="fas fa-sign-out-alt text-red-400 group-hover:text-red-500"></i>
+                                        Logout
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Login Section (Only visible when logged out) -->
+                            <div id="authLinks" style="display: block;" class="p-4 text-center">
+                                <p class="text-sm text-slate-500 mb-3">Welcome to Genzikart</p>
+                                <a href="login.html"
+                                    class="block w-full bg-amber-500 text-white py-2 rounded-lg font-bold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30">
+                                    Login / Register
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Menu Toggle -->
+                    <button id="mobileMenuBtn" class="md:hidden text-2xl" data-testid="mobile-menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="mobile-menu">
+            <a href="index.html" class="mobile-menu-link">Home</a>
+            <a href="services.html" class="mobile-menu-link">Services</a>
+            <a href="products.html" class="mobile-menu-link">Products</a>
+            <a href="support.html" class="mobile-menu-link">Support</a>
+            <div class="px-4 pt-2">
+                <input type="text" id="mobileSearchInput" placeholder="Search products..."
+                    class="w-full px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:border-amber-500">
+            </div>
+        </div>
+    </nav>
+
+    <!-- ============================================================
+         PAGE LOADER SECTION
+         ============================================================ -->
+    <div id="pageLoader" class="page-loader">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <!-- ============================================================
+         HERO SECTION 
+         (Main promotional slider)
+         ============================================================ -->
+    <section class="hero-section" data-testid="hero-section">
+        <div class="hero-slider" id="heroSlider">
+            <div class="hero-slide active">
+                <img src="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=1200&h=600&fit=crop"
+                    alt="Premium Phone Cases" class="hero-image">
+                <div class="hero-overlay">
+                    <div class="hero-content">
+                        <h1 class="hero-title">Premium Anti-Yellow Cases</h1>
+                        <p class="hero-subtitle">Starting at ₹299</p>
+                        <div class="hero-badge">50% OFF</div>
+                        <button class="hero-btn" onclick="window.location.href='products.html'"
+                            data-testid="shop-now-btn">Shop Now</button>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-slide">
+                <img src="https://images.unsplash.com/photo-1556656793-08538906a9f8?w=1200&h=600&fit=crop"
+                    alt="Samsung Cases" class="hero-image">
+                <div class="hero-overlay">
+                    <div class="hero-content">
+                        <h1 class="hero-title">Galaxy S24/S25 Collection</h1>
+                        <p class="hero-subtitle">Premium Protection ₹399</p>
+                        <div class="hero-badge">NEW ARRIVAL</div>
+                        <button class="hero-btn" onclick="window.location.href='products.html'"
+                            data-testid="shop-now-btn">Shop Now</button>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-slide">
+                <img src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=1200&h=600&fit=crop"
+                    alt="iPhone Cases" class="hero-image">
+                <div class="hero-overlay">
+                    <div class="hero-content">
+                        <h1 class="hero-title">iPhone 16 & 17 Cases</h1>
+                        <p class="hero-subtitle">Crystal Clear ₹499</p>
+                        <div class="hero-badge">TRENDING</div>
+                        <button class="hero-btn" onclick="window.location.href='products.html'"
+                            data-testid="shop-now-btn">Shop Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Category Pills -->
+    <section class="py-8 bg-slate-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex flex-wrap gap-3 justify-center" id="categoryPills" data-testid="category-pills">
+                <button class="category-pill active" data-category="all">All</button>
+                <button class="category-pill" data-category="iphone">iPhone</button>
+                <button class="category-pill" data-category="samsung">Samsung</button>
+                <button class="category-pill" data-category="buds">Buds</button>
+                <button class="category-pill" data-category="templates">Templates</button>
+                <button class="category-pill" data-category="others">Others</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         PRODUCT LISTINGS 
+         (Best Sellers & Category Filtering)
+         ============================================================ -->
+    <section class="py-16 bg-white" data-testid="best-sellers-section">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="section-title">Best Selling Products</h2>
+            <div id="bestSellersGrid" class="product-grid">
+                <!-- Skeleton Loaders -->
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- All Products -->
+    <section class="py-16 bg-slate-50" data-testid="all-products-section">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="section-title">All Products</h2>
+            <div id="productsGrid" class="product-grid">
+                <!-- Skeleton Loaders -->
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+                <div class="skeleton-card"></div>
+            </div>
+
+            <!-- Improved Show More Button -->
+            <div class="text-center mt-12 mb-8">
+                <a href="products.html"
+                    class="relative inline-flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-lg overflow-hidden transition-all duration-500 hover:scale-105 hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.4)] group">
+                    <!-- Subtle Glow Effect -->
+                    <div
+                        class="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/20 to-amber-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000">
+                    </div>
+
+                    <span class="relative">Show More Products</span>
+                    <i
+                        class="fas fa-arrow-right text-sm transition-transform duration-300 group-hover:translate-x-1 bg-amber-500 p-1.5 rounded-full text-slate-900"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recently Viewed -->
+    <section id="recentlyViewedSection" class="py-16 bg-white hidden" data-testid="recently-viewed-section">
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="section-title">Recently Viewed</h2>
+            <div id="recentlyViewedGrid" class="horizontal-scroll">
+            </div>
+        </div>
+    </section>
+
+    <!-- Offer & Trust Section -->
+    <section class="py-16 bg-gradient-to-br from-amber-50 to-orange-50" data-testid="offer-section">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="section-title">Limited Time Offer</h2>
+                <div id="countdown" class="countdown" data-testid="countdown-timer">
+                    <div class="countdown-item">
+                        <span id="days" class="countdown-number">00</span>
+                        <span class="countdown-label">Days</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span id="hours" class="countdown-number">00</span>
+                        <span class="countdown-label">Hours</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span id="minutes" class="countdown-number">00</span>
+                        <span class="countdown-label">Minutes</span>
+                    </div>
+                    <div class="countdown-item">
+                        <span id="seconds" class="countdown-number">00</span>
+                        <span class="countdown-label">Seconds</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Videos -->
+            <div class="grid md:grid-cols-3 gap-6 mb-12">
+                <div class="video-card" data-testid="review-video-1">
+                    <video controls class="w-full rounded-lg"
+                        poster="https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&h=300&fit=crop">
+                        <source src="#" type="video/mp4">
+                    </video>
+                    <p class="mt-3 text-sm text-slate-600">⭐⭐⭐⭐⭐ "Best quality cases!" - Rahul S.</p>
+                </div>
+                <div class="video-card" data-testid="review-video-2">
+                    <video controls class="w-full rounded-lg"
+                        poster="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=300&fit=crop">
+                        <source src="#" type="video/mp4">
+                    </video>
+                    <p class="mt-3 text-sm text-slate-600">⭐⭐⭐⭐⭐ "Never yellows!" - Priya M.</p>
+                </div>
+                <div class="video-card" data-testid="product-video">
+                    <video controls class="w-full rounded-lg"
+                        poster="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=300&fit=crop">
+                        <source src="#" type="video/mp4">
+                    </video>
+                    <p class="mt-3 text-sm text-slate-600">Premium Quality Showcase</p>
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="max-w-3xl mx-auto" data-testid="comments-section">
+                <h3 class="text-2xl font-bold mb-6">Customer Reviews</h3>
+                <div class="space-y-4">
+                    <div class="comment-card">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center">
+                                <i class="fas fa-user text-slate-600"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold">Amit Kumar</h4>
+                                <p class="text-yellow-500 text-sm">⭐⭐⭐⭐⭐</p>
+                                <p class="text-slate-600 mt-2">Amazing quality! The case hasn't yellowed even after 6
+                                    months.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="comment-card">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center">
+                                <i class="fas fa-user text-slate-600"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold">Sneha Patel</h4>
+                                <p class="text-yellow-500 text-sm">⭐⭐⭐⭐⭐</p>
+                                <p class="text-slate-600 mt-2">Perfect fit for my iPhone 16. Highly recommended!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Support Buttons -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40" data-testid="floating-support">
+        <a href="https://wa.me/9536109375" target="_blank" class="floating-btn bg-green-500 hover:bg-green-600"
+            data-testid="floating-whatsapp">
+            <i class="fab fa-whatsapp text-2xl"></i>
+        </a>
+        <a href="mailto:Genzikart@gmail.com" class="floating-btn bg-blue-500 hover:bg-blue-600"
+            data-testid="floating-email">
+            <i class="fas fa-envelope text-2xl"></i>
+        </a>
+    </div>
+
+    <!-- ============================================================
+         FOOTER SECTION 
+         (Branding, Quick Links, & Copyright)
+         ============================================================ -->
+    <footer class="bg-slate-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">GenziKart</h3>
+                    <p class="text-slate-400">Premium phone protection</p>
+                    <p class="text-slate-400 mt-2" id="liveTime"></p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="index.html" class="text-slate-400 hover:text-white transition-colors">Home</a></li>
+                        <li><a href="products.html"
+                                class="text-slate-400 hover:text-white transition-colors">Products</a></li>
+                        <li><a href="cart.html" class="text-slate-400 hover:text-white transition-colors">Cart</a></li>
+                        <li><a href="support.html" class="text-slate-400 hover:text-white transition-colors">Support</a>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-2">
+                        <li><a href="privacy.html" class="text-slate-400 hover:text-white transition-colors">Privacy
+                                Policy</a></li>
+                        <li><a href="terms.html" class="text-slate-400 hover:text-white transition-colors">Terms &
+                                Conditions</a></li>
+                        <li><a href="refund.html" class="text-slate-400 hover:text-white transition-colors">Refund &
+                                Return</a></li>
+                        <li><a href="shipping.html" class="text-slate-400 hover:text-white transition-colors">Shipping
+                                Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Follow Us</h4>
+                    <div class="flex gap-4">
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-2xl text-slate-400 hover:text-white transition-colors"><i
+                                class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 pt-8 text-center text-slate-400">
+                <p>&copy; 2026 Genzikart.in. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/utils.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>

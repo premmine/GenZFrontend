@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | GenziKart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+
+<body class="antialiased bg-slate-900 border-t-4 border-indigo-500">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4">
+        <div class="max-w-md w-full">
+            <!-- Back Button -->
+            <a href="../index.html"
+                class="inline-flex items-center text-slate-400 hover:text-white mb-8 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Store
+            </a>
+
+            <!-- Login Card -->
+            <div class="bg-white rounded-2xl shadow-2xl p-8 overflow-hidden relative">
+                <div class="absolute top-0 right-0 p-4 opacity-10">
+                    <i class="fas fa-user-shield text-6xl text-slate-900"></i>
+                </div>
+
+                <div class="text-center mb-8 relative z-10">
+                    <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-lock text-2xl text-indigo-600"></i>
+                    </div>
+                    <h1 class="text-3xl font-black text-slate-900 mb-2">Admin Portal</h1>
+                    <p class="text-slate-500 font-medium">Authorization required to access dashboard</p>
+                </div>
+
+                <!-- Email Form -->
+                <form id="emailForm">
+                    <div class="mb-6">
+                        <label class="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Admin
+                            Email</label>
+                        <input type="email" id="emailInput" required
+                            class="w-full px-4 py-4 rounded-xl border-2 border-slate-100 focus:outline-none focus:border-indigo-500 transition-all font-medium"
+                            placeholder="admin@genzikart.com">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black hover:bg-slate-900 transition-all shadow-lg shadow-indigo-200">
+                        Request Access Code
+                    </button>
+                </form>
+
+                <!-- OTP Form (Hidden Initially) -->
+                <form id="otpForm" class="hidden">
+                    <div class="mb-6">
+                        <label
+                            class="block text-sm font-black text-slate-700 mb-2 uppercase tracking-wider">Verification
+                            Code</label>
+                        <p class="text-sm text-slate-500 mb-4 font-medium">Sent to <span id="displayEmail"
+                                class="text-indigo-600 font-bold"></span></p>
+                        <div class="flex gap-2 justify-center mb-6">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                            <input type="text" maxlength="1"
+                                class="otp-input w-12 h-14 text-center text-2xl font-black border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-all">
+                        </div>
+                        <button type="button" id="resendBtn"
+                            class="text-sm text-indigo-600 hover:text-indigo-700 font-black uppercase tracking-widest">Resend
+                            Code</button>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black hover:bg-slate-900 transition-all shadow-lg shadow-indigo-200">
+                        Authorize Access
+                    </button>
+                    <button type="button" id="changeEmailBtn"
+                        class="w-full mt-4 text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest">Use
+                        Different Email</button>
+                </form>
+
+                <!-- Status Elements -->
+                <div id="loadingSpinner" class="hidden text-center py-8">
+                    <div
+                        class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-100 border-t-indigo-600">
+                    </div>
+                    <p class="mt-4 text-slate-500 font-black uppercase tracking-tighter">Validating Authority...</p>
+                </div>
+
+                <div id="successMessage" class="hidden text-center py-8">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check text-3xl text-green-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-slate-900 mb-2">Access Granted</h2>
+                    <p class="text-slate-500 font-medium">Entering secure area...</p>
+                </div>
+
+                <div id="errorMessage" class="hidden mt-6 p-4 bg-red-50 border-2 border-red-100 rounded-xl">
+                    <p class="text-red-600 text-sm font-bold flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="errorText">Access Denied: Invalid Credentials.</span>
+                    </p>
+                </div>
+            </div>
+
+            <p class="text-center mt-8 text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">
+                System Security v1.0.0
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'https://gen-z-backend.vercel.app/api'
+            : '/api';
+        let adminEmail = "";
+
+        // UI HELPERS
+        const showElement = (id) => document.getElementById(id).classList.remove('hidden');
+        const hideElement = (id) => document.getElementById(id).classList.add('hidden');
+        const showError = (msg) => {
+            document.getElementById('errorText').textContent = msg;
+            showElement('errorMessage');
+            setTimeout(() => hideElement('errorMessage'), 5000);
+        };
+
+        // EMAIL SUBMISSION
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            adminEmail = document.getElementById('emailInput').value.trim();
+            if (!adminEmail) return;
+
+            hideElement('emailForm');
+            showElement('loadingSpinner');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: adminEmail })
+                });
+                const data = await res.json();
+                hideElement('loadingSpinner');
+
+                if (data.success) {
+                    showElement('otpForm');
+                    document.getElementById('displayEmail').textContent = adminEmail;
+                    document.querySelector('.otp-input').focus();
+                } else {
+                    showElement('emailForm');
+                    showError(data.message || "Failed to send code");
+                }
+            } catch (err) {
+                hideElement('loadingSpinner');
+                showElement('emailForm');
+                showError("Connection failed");
+            }
+        });
+
+        // OTP LOGIC
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach((input, index) => {
+            input.addEventListener('input', function () {
+                if (this.value.length === 1 && index < otpInputs.length - 1) otpInputs[index + 1].focus();
+            });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && !this.value && index > 0) otpInputs[index - 1].focus();
+            });
+        });
+
+        // VERIFY OTP
+        document.getElementById('otpForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const otp = Array.from(otpInputs).map(i => i.value).join('');
+            if (otp.length < 6) return showError("Complete the code");
+
+            hideElement('otpForm');
+            showElement('loadingSpinner');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: adminEmail, otp })
+                });
+                const data = await res.json();
+                hideElement('loadingSpinner');
+
+                if (data.token) {
+                    console.log("👤 Auth Response User:", data.user);
+                    if (data.user.role !== 'admin') {
+                        showError("Access Denied: Administrative role required.");
+                        showElement('otpForm');
+                        return;
+                    }
+
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('adminEmail', adminEmail);
+                    localStorage.setItem('adminName', data.user.name || 'Admin');
+
+                    showElement('successMessage');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                } else {
+                    showElement('otpForm');
+                    showError("Invalid or expired code");
+                }
+            } catch (err) {
+                hideElement('loadingSpinner');
+                showElement('otpForm');
+                showError("Verification failed");
+            }
+        });
+
+        // RESEND & CHANGE EMAIL
+        document.getElementById('resendBtn').addEventListener('click', () => document.getElementById('emailForm').dispatchEvent(new Event('submit')));
+        document.getElementById('changeEmailBtn').addEventListener('click', () => {
+            hideElement('otpForm');
+            showElement('emailForm');
+            otpInputs.forEach(i => i.value = '');
+        });
+    </script>
+</body>
+
+</html>

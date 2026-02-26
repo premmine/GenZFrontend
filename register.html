@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | Genzikart</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="antialiased bg-slate-50">
+
+    <div class="min-h-screen flex items-center justify-center py-12 px-4">
+
+        <div class="max-w-md w-full">
+
+            <!-- Back Button -->
+            <a href="index.html" class="inline-flex items-center text-slate-600 hover:text-slate-800 mb-8">
+                ← Back to Home
+            </a>
+
+            <!-- Card -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+
+                <!-- Header -->
+                <div class="text-center mb-8">
+                    <div class="text-center mb-6">
+                        <img src="images/logo.jpg" class="h-12 mx-auto mb-3">
+                        <h1 class="text-3xl font-bold text-slate-800 mb-2">
+                            Create Your Account
+                        </h1>
+                    </div>
+                    <p class="text-slate-600">
+                        Join Genzikart today
+                    </p>
+                </div>
+
+                <!-- Form -->
+                <form>
+
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">
+                            Full Name
+                        </label>
+                        <input id="name" class="input" placeholder="Your Name">
+                    </div>
+
+                    <div class="mb-5">
+
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">
+                            Email Address
+                        </label>
+
+                        <div class="flex gap-2">
+
+                            <input id="email" class="input flex-1" placeholder="your@email.com">
+
+                            <button id="sendOtpBtn" type="button" class="otp-btn">
+                                Send OTP
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">
+                            Phone Number
+                        </label>
+                        <input id="phone" class="input" placeholder="10-digit mobile">
+                    </div>
+
+                    <!-- OTP Section -->
+                    <div id="otpSection" class="hidden mb-5">
+
+                        <label class="block text-sm font-semibold text-slate-700 mb-3 text-center">
+                            Enter OTP
+                        </label>
+
+                        <div class="flex gap-2 justify-center">
+                            <input maxlength="1" class="otp-input">
+                            <input maxlength="1" class="otp-input">
+                            <input maxlength="1" class="otp-input">
+                            <input maxlength="1" class="otp-input">
+                            <input maxlength="1" class="otp-input">
+                            <input maxlength="1" class="otp-input">
+                        </div>
+                    </div>
+
+                    <!-- Buttons -->
+                    <button id="verifyBtn" class="primary-btn mt-4" disabled>
+                        Register
+                    </button>
+
+                    <!-- <button id="verifyBtn"
+                        class="primargooy-btn mt-3 hidden">
+                    Verify & Register
+                </button> -->
+
+                </form>
+
+                <!-- Divider -->
+                <div class="my-6 text-center text-slate-400 text-sm">
+                    OR
+                </div>
+
+                <!-- Google Button -->
+                <button class="google-btn flex items-center justify-center gap-3">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5">
+                    Continue with Google
+                </button>
+
+            </div>
+
+            <!-- Login Link -->
+            <p class="text-center mt-6 text-slate-600">
+                Already have an account?
+                <a href="login.html" class="text-amber-600 font-semibold hover:text-amber-700">
+                    Login
+                </a>
+            </p>
+
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/register.js"></script>
+
+</body>
+
+</html>

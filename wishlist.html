@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wishlist | GenziKart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="antialiased bg-slate-50">
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="flex items-center">
+                        <img src="images/logo.jpg" alt="GENZIKART Logo" class="h-10 w-auto" />
+                    </a>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="products.html" class="nav-link">Products</a>
+                    <a href="wishlist.html" class="nav-link active">Wishlist</a>
+                    <a href="support.html" class="nav-link">Support</a>
+                </div>
+
+                <!-- Right Icons -->
+                <div class="flex items-center space-x-4">
+                    <!-- Search -->
+                    <div class="hidden md:block relative">
+                        <input type="text" id="searchInput" placeholder="Search products..."
+                            class="w-48 px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:border-amber-500 transition-colors">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    </div>
+
+                    <!-- Cart -->
+                    <a href="cart.html" class="relative nav-icon" data-testid="cart-icon">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cartBadge" class="cart-badge">0</span>
+                    </a>
+
+                    <!-- WhatsApp -->
+                    <a href="https://wa.me/9536109375" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
+                        <i class="fab fa-whatsapp text-xl text-green-500"></i>
+                    </a>
+
+                    <!-- User Profile -->
+                    <div class="relative" id="userDropdown">
+                        <button class="nav-icon" data-testid="user-profile-btn">
+                            <i class="fas fa-user text-xl"></i>
+                        </button>
+                        <div id="dropdownMenu" class="dropdown-menu w-64 p-0 overflow-hidden">
+                            <!-- User Info Section (Only visible when logged in) -->
+                            <div id="userLinks" style="display: none;">
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 border-b border-slate-100">
+                                    <div class="flex items-center gap-3">
+                                        <div id="avatarDisplay"
+                                            class="text-3xl bg-white w-12 h-12 rounded-full flex items-center justify-center shadow-sm">
+                                            🧑‍💼</div>
+                                        <div class="overflow-hidden">
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                                Account</p>
+                                            <p id="userEmailDisplay" class="text-sm font-bold text-slate-700 truncate">
+                                                user@example.com</p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="avatar-grid flex justify-between mt-3 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                        <!-- Avatars injected via main.js -->
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <a href="profile.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-user-circle text-slate-400 group-hover:text-amber-500"></i>
+                                        My Profile
+                                    </a>
+                                    <a href="my-orders.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-box text-slate-400 group-hover:text-amber-500"></i>
+                                        My Orders
+                                    </a>
+                                    <a href="wishlist.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-heart text-slate-400 group-hover:text-amber-500"></i>
+                                        Wishlist
+                                    </a>
+                                    <hr class="my-2 border-slate-100">
+                                    <a href="#" id="logoutBtn"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors group">
+                                        <i class="fas fa-sign-out-alt text-red-400 group-hover:text-red-500"></i>
+                                        Logout
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Login Section (Only visible when logged out) -->
+                            <div id="authLinks" style="display: block;" class="p-4 text-center">
+                                <p class="text-sm text-slate-500 mb-3">Welcome to Genzikart</p>
+                                <a href="login.html"
+                                    class="block w-full bg-amber-500 text-white py-2 rounded-lg font-bold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30">
+                                    Login / Register
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Menu Toggle -->
+                    <button id="mobileMenuBtn" class="md:hidden text-2xl" data-testid="mobile-menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="mobile-menu">
+            <a href="index.html" class="mobile-menu-link">Home</a>
+            <a href="products.html" class="mobile-menu-link">Products</a>
+            <a href="wishlist.html" class="mobile-menu-link">Wishlist</a>
+            <a href="support.html" class="mobile-menu-link">Support</a>
+        </div>
+    </nav>
+
+    <div class="pt-24 pb-16">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between mb-8">
+                <h1 class="text-3xl font-bold">My Wishlist</h1>
+                <span id="wishlistCount" class="text-lg text-slate-600" data-testid="wishlist-count">0 items</span>
+            </div>
+
+            <!-- Wishlist Grid -->
+            <div id="wishlistGrid" class="product-grid" data-testid="wishlist-grid">
+                <!-- Products will be loaded here -->
+            </div>
+
+            <!-- Empty Wishlist Message -->
+            <div id="emptyWishlist" class="hidden text-center py-16" data-testid="empty-wishlist">
+                <i class="fas fa-heart text-6xl text-slate-300 mb-4"></i>
+                <h2 class="text-2xl font-semibold text-slate-600 mb-4">Your wishlist is empty</h2>
+                <p class="text-slate-500 mb-6">Save items you love for later</p>
+                <a href="products.html"
+                    class="inline-block px-6 py-3 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-colors">
+                    Browse Products
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Support Buttons -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
+        <a href="https://wa.me/1234567890" target="_blank" class="floating-btn bg-green-500 hover:bg-green-600">
+            <i class="fab fa-whatsapp text-2xl"></i>
+        </a>
+        <a href="support.html" class="floating-btn bg-blue-500 hover:bg-blue-600">
+            <i class="fas fa-headset text-2xl"></i>
+        </a>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script>
+        let wishlist = [];
+        let allProducts = [];
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Badges are now handled by utils.js init
+            await loadProducts();
+            loadWishlist();
+        });
+
+        async function loadProducts() {
+            try {
+                // Fetch from real MongoDB backend
+                allProducts = await apiFetch('/products');
+            } catch (error) {
+                console.error('Error loading products:', error);
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        function loadWishlist() {
+            wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+            updateWishlistCount();
+            displayWishlist();
+        }
+
+        function updateWishlistCount() {
+            const count = document.getElementById('wishlistCount');
+            if (count) {
+                count.textContent = `${wishlist.length} item${wishlist.length !== 1 ? 's' : ''}`;
+            }
+            updateWishlistBadge(); // Call global utility
+        }
+
+        function displayWishlist() {
+            const grid = document.getElementById('wishlistGrid');
+            const emptyMessage = document.getElementById('emptyWishlist');
+
+            if (wishlist.length === 0) {
+                grid.classList.add('hidden');
+                emptyMessage.classList.remove('hidden');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            emptyMessage.classList.add('hidden');
+
+            const wishlistProducts = allProducts.filter(p => wishlist.includes(p._id));
+
+            grid.innerHTML = wishlistProducts.map((product, index) => createProductCard(product, index)).join('');
+        }
+
+        function createProductCard(product, index) {
+            const productId = product._id;
+
+            // Dynamic defaults for consistency with main store
+            const price = product.price || 0;
+            const originalPrice = product.originalPrice || Math.round(price * 1.5);
+            const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+            const rating = product.rating || 4.5;
+            const reviews = product.reviews || Math.floor(Math.random() * 500) + 50;
+
+            return `
+                <div class="product-card" style="animation-delay: ${index * 0.1}s">
+                    <div class="relative">
+                        <img src="${product.image}" 
+                             alt="${product.name}" 
+                             class="product-image" 
+                             loading="lazy"
+                             onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                        
+                        <button onclick="toggleWishlist('${productId}')" class="wishlist-btn active">
+                            <i class="fas fa-heart"></i>
+                        </button>
+
+                        ${product.bestseller || product.soldCount > 50
+                    ? '<div class="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold">Best Seller</div>'
+                    : ''}
+                    </div>
+                    <div class="p-4">
+                        <h3 class="product-title">${product.name}</h3>
+                        
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="rating-box">${rating} ★</span>
+                            <span class="text-xs text-slate-500">(${reviews})</span>
+                        </div>
+
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="product-price">₹${price}</span>
+                            <span class="original-price">₹${originalPrice}</span>
+                            <span class="discount-text">${discount}% off</span>
+                        </div>
+
+                        <p class="stock-alert">
+                            <i class="fas fa-bolt"></i> ${product.stock < 10 ? 'Only few left' : 'In Stock'}
+                        </p>
+
+                        <div class="flex items-center justify-between mt-3">
+                            <button onclick="addToCart('${productId}')" class="add-to-cart-btn w-full">
+                                <i class="fas fa-shopping-cart mr-1"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleWishlist(productId) {
+            if (!isLoggedIn()) {
+                showAuthModal("modify your wishlist");
+                return;
+            }
+
+            wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+            const index = wishlist.indexOf(productId);
+
+            if (index > -1) {
+                wishlist.splice(index, 1);
+                showToast('Removed from wishlist');
+            } else {
+                wishlist.push(productId);
+                showToast('Added to wishlist');
+            }
+
+            localStorage.setItem('wishlist', JSON.stringify(wishlist));
+            loadWishlist();
+        }
+
+        function addToCart(productId) {
+            if (!isLoggedIn()) {
+                showAuthModal("add products to your cart");
+                return;
+            }
+
+            const product = allProducts.find(p => p._id === productId);
+            if (!product) return;
+
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const existingItem = cart.find(item => item.productId === productId);
+
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    productId: productId,
+                    quantity: 1,
+                    price: product.price,
+                    name: product.name,
+                    image: product.image
+                });
+            }
+
+            localStorage.setItem('cart', JSON.stringify(cart));
+
+            // Sync with backend (token check is redundant but safe)
+            apiFetch('/cart/merge', {
+                method: 'POST',
+                body: JSON.stringify({ localCart: cart })
+            }).catch(err => console.error('Cart sync failed:', err));
+
+            updateCartBadge();
+            showToast('Added to cart!');
+        }
+    </script>
+</body>
+
+</html>

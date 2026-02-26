@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Address | GenziKart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="antialiased bg-slate-50">
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 bg-white transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="flex items-center">
+                        <img src="images/logo.jpg" alt="GENZIKART Logo" class="h-10 w-auto" />
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class="nav-link">Home</a>
+                    <a href="products.html" class="nav-link">Products</a>
+                    <a href="cart.html" class="nav-link">Cart</a>
+                    <a href="support.html" class="nav-link">Support</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://wa.me/9536109375" target="_blank" class="nav-icon">
+                        <i class="fab fa-whatsapp text-xl text-green-500"></i>
+                    </a>
+                    <div class="relative" id="userDropdown">
+                        <button class="nav-icon" data-testid="user-profile-btn">
+                            <i class="fas fa-user text-xl"></i>
+                        </button>
+                        <div id="dropdownMenu" class="dropdown-menu w-64 p-0 overflow-hidden">
+                            <!-- User Info Section (Only visible when logged in) -->
+                            <div id="userLinks" style="display: none;">
+                                <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-4 border-b border-slate-100">
+                                    <div class="flex items-center gap-3">
+                                        <div id="avatarDisplay"
+                                            class="text-3xl bg-white w-12 h-12 rounded-full flex items-center justify-center shadow-sm">
+                                            🧑‍💼</div>
+                                        <div class="overflow-hidden">
+                                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                                Account</p>
+                                            <p id="userEmailDisplay" class="text-sm font-bold text-slate-700 truncate">
+                                                user@example.com</p>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="avatar-grid flex justify-between mt-3 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                        <!-- Avatars injected via main.js -->
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <a href="profile.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-user-circle text-slate-400 group-hover:text-amber-500"></i>
+                                        My Profile
+                                    </a>
+                                    <a href="my-orders.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-box text-slate-400 group-hover:text-amber-500"></i>
+                                        My Orders
+                                    </a>
+                                    <a href="wishlist.html"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition-colors group">
+                                        <i class="fas fa-heart text-slate-400 group-hover:text-amber-500"></i>
+                                        Wishlist
+                                    </a>
+                                    <hr class="my-2 border-slate-100">
+                                    <a href="#" id="logoutBtn"
+                                        class="flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors group">
+                                        <i class="fas fa-sign-out-alt text-red-400 group-hover:text-red-500"></i>
+                                        Logout
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Login Section (Only visible when logged out) -->
+                            <div id="authLinks" style="display: block;" class="p-4 text-center">
+                                <p class="text-sm text-slate-500 mb-3">Welcome to Genzikart</p>
+                                <a href="login.html"
+                                    class="block w-full bg-amber-500 text-white py-2 rounded-lg font-bold hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30">
+                                    Login / Register
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="mobileMenuBtn" class="md:hidden text-2xl"><i class="fas fa-bars"></i></button>
+                </div>
+            </div>
+        </div>
+        <div id="mobileMenu" class="mobile-menu">
+            <a href="index.html" class="mobile-menu-link">Home</a>
+            <a href="products.html" class="mobile-menu-link">Products</a>
+            <a href="cart.html" class="mobile-menu-link">Cart</a>
+            <a href="support.html" class="mobile-menu-link">Support</a>
+        </div>
+    </nav>
+
+    <div class="min-h-screen pt-24 pb-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="flex items-center mb-8">
+                <a href="cart.html" class="text-slate-600 hover:text-slate-800">
+                    <i class="fas fa-arrow-left text-2xl"></i>
+                </a>
+                <h1 class="text-3xl font-bold ml-4">Delivery Address</h1>
+            </div>
+
+            <!-- Loading state -->
+            <div id="loadingState" class="text-center py-16 text-slate-400">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
+                <p>Loading your details...</p>
+            </div>
+
+            <!-- Main Grid (hidden until loaded) -->
+            <div id="mainContent" class="grid lg:grid-cols-3 gap-8 hidden">
+                <!-- Address Form -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-map-marker-alt text-amber-500"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800">Delivery Details</h2>
+                                <p class="text-xs text-slate-400">Pre-filled from your profile · Edit if needed</p>
+                            </div>
+                        </div>
+
+                        <form id="addressForm">
+                            <!-- Full Name -->
+                            <div class="mb-5">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Full Name <span
+                                        class="text-red-400">*</span></label>
+                                <input type="text" id="addrName" required
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none transition-all"
+                                    placeholder="Your full name">
+                            </div>
+
+                            <!-- Phone (locked) & Email (locked) -->
+                            <div class="grid md:grid-cols-2 gap-4 mb-5">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                        Phone <span class="text-slate-400 font-normal text-xs">(from profile)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="tel" id="addrPhone" readonly
+                                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 cursor-not-allowed outline-none">
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                        Email <span class="text-slate-400 font-normal text-xs">(from profile)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <input type="email" id="addrEmail" readonly
+                                            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 cursor-not-allowed outline-none">
+                                        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Address Line 1 -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Address Line 1 <span
+                                        class="text-red-400">*</span></label>
+                                <input type="text" id="addrLine1" required
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none transition-all"
+                                    placeholder="House / Flat No., Building, Street">
+                            </div>
+
+                            <!-- Address Line 2 -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">Address Line 2 <span
+                                        class="text-slate-400 font-normal text-xs">(optional)</span></label>
+                                <input type="text" id="addrLine2"
+                                    class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none transition-all"
+                                    placeholder="Locality, Area, Landmark">
+                            </div>
+
+                            <!-- City + State -->
+                            <div class="grid md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">City <span
+                                            class="text-red-400">*</span></label>
+                                    <input type="text" id="addrCity" required
+                                        class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none transition-all"
+                                        placeholder="e.g. Bareilly">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-1">State <span
+                                            class="text-red-400">*</span></label>
+                                    <input type="text" id="addrState" required
+                                        class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 outline-none transition-all"
+                                        placeholder="e.g. Uttar Pradesh">
+                                </div>
+                            </div>
+
+                            <!-- Address Type -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Address Type</label>
+                                <div class="flex gap-3">
+                                    <button type="button" data-value="home" id="typeHome"
+                                        class="addr-type-btn flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all border-amber-500 bg-amber-50 text-amber-600">
+                                        <i class="fas fa-home"></i> Home
+                                    </button>
+                                    <button type="button" data-value="work" id="typeWork"
+                                        class="addr-type-btn flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 font-semibold text-sm transition-all border-slate-200 text-slate-500 hover:border-amber-300">
+                                        <i class="fas fa-briefcase"></i> Work
+                                    </button>
+                                    <input type="hidden" id="addrType" value="home">
+                                </div>
+                            </div>
+
+                            <button type="submit" id="continueBtn"
+                                class="w-full bg-amber-500 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 flex items-center justify-center gap-2">
+                                <span>Continue to Payment</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100 sticky top-24">
+                        <h2 class="text-xl font-bold mb-6 text-slate-800">Order Summary</h2>
+                        <div class="space-y-3 mb-6">
+                            <div class="flex justify-between text-slate-600">
+                                <span>Items</span>
+                                <span id="itemCount" class="font-semibold text-slate-800">0</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Subtotal</span>
+                                <span id="subtotal" class="font-semibold text-slate-800">₹0</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Shipping</span>
+                                <span class="text-green-600 font-semibold">FREE</span>
+                            </div>
+                            <div
+                                class="border-t border-slate-100 pt-3 flex justify-between text-lg font-bold text-slate-800">
+                                <span>Total</span>
+                                <span id="total">₹0</span>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700 flex items-center gap-2">
+                            <i class="fas fa-shield-alt text-amber-500"></i>
+                            Secure checkout · Free delivery
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script>
+        // Address type toggle
+        document.querySelectorAll('.addr-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.addr-type-btn').forEach(b => {
+                    b.classList.remove('border-amber-500', 'bg-amber-50', 'text-amber-600');
+                    b.classList.add('border-slate-200', 'text-slate-500');
+                });
+                btn.classList.add('border-amber-500', 'bg-amber-50', 'text-amber-600');
+                btn.classList.remove('border-slate-200', 'text-slate-500');
+                document.getElementById('addrType').value = btn.dataset.value;
+            });
+        });
+
+        // Load cart summary
+        async function loadCartSummary() {
+            try {
+                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+                // Fetch real products to get prices
+                const response = await apiFetch('/products');
+                const products = response.products || []; // Extract from nested products array
+
+                let subtotal = 0;
+                let totalQty = 0;
+
+                cart.forEach(item => {
+                    const product = products.find(p => p._id === item.productId);
+                    if (product) {
+                        subtotal += (product.price * item.quantity);
+                        totalQty += item.quantity;
+                    }
+                });
+
+                document.getElementById('itemCount').textContent = totalQty;
+                document.getElementById('subtotal').textContent = '₹' + subtotal.toLocaleString('en-IN');
+                document.getElementById('total').textContent = '₹' + subtotal.toLocaleString('en-IN');
+            } catch (err) {
+                console.error('Error loading cart summary:', err);
+            }
+        }
+
+        // Fetch user profile from DB and auto-fill form
+        async function loadProfileAndFill() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const userEmail = localStorage.getItem('userEmail');
+                const users = await fetch(`${API_BASE_URL}/users`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json());
+
+                const user = users.find(u => u.email === userEmail);
+                if (!user) throw new Error('User not found');
+
+                const addr = user.address || {};
+
+                // Fill editable fields
+                document.getElementById('addrName').value = user.name || '';
+                document.getElementById('addrLine1').value = addr.line1 || '';
+                document.getElementById('addrLine2').value = addr.line2 || '';
+                document.getElementById('addrCity').value = addr.city || '';
+                document.getElementById('addrState').value = addr.state || '';
+
+                // Fill locked fields
+                document.getElementById('addrPhone').value = user.phone || '';
+                document.getElementById('addrEmail').value = user.email || '';
+
+                // Set address type toggle
+                const savedType = addr.type || 'home';
+                document.getElementById('addrType').value = savedType;
+                document.querySelectorAll('.addr-type-btn').forEach(b => {
+                    const isActive = b.dataset.value === savedType;
+                    b.classList.toggle('border-amber-500', isActive);
+                    b.classList.toggle('bg-amber-50', isActive);
+                    b.classList.toggle('text-amber-600', isActive);
+                    b.classList.toggle('border-slate-200', !isActive);
+                    b.classList.toggle('text-slate-500', !isActive);
+                });
+
+                // Show the form
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+
+            } catch (err) {
+                console.error('Error loading profile:', err);
+                showToast('Could not load your details. Please try again.', 'error');
+                document.getElementById('loadingState').innerHTML =
+                    `<i class="fas fa-exclamation-circle text-3xl text-red-400 mb-3"></i>
+                     <p class="text-slate-500">Failed to load profile. <a href="profile.html" class="text-amber-500 underline">Go to profile</a></p>`;
+            }
+        }
+
+        // Form submit → save updated address to selectedAddress & go to payment
+        document.getElementById('addressForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const deliveryAddress = {
+                name: document.getElementById('addrName').value.trim(),
+                phone: document.getElementById('addrPhone').value.trim(),
+                email: document.getElementById('addrEmail').value.trim(),
+                line1: document.getElementById('addrLine1').value.trim(),
+                line2: document.getElementById('addrLine2').value.trim(),
+                city: document.getElementById('addrCity').value.trim(),
+                state: document.getElementById('addrState').value.trim(),
+                type: document.getElementById('addrType').value
+            };
+
+            // Store for use on payment page
+            localStorage.setItem('selectedAddress', JSON.stringify(deliveryAddress));
+
+            const btn = document.getElementById('continueBtn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Please wait...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                window.location.href = 'payment.html';
+            }, 400);
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCartSummary();
+            loadProfileAndFill();
+        });
+    </script>
+</body>
+
+</html>

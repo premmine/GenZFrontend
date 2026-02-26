@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "name": "iPhone 15 Pro Max",
+    "category": "iphone",
+    "price": 159900,
+    "image": "https://images.unsplash.com/photo-1696446701796-da61225697cc?w=500&auto=format&fit=crop&q=60",
+    "rating": 5,
+    "reviews": 128,
+    "soldCount": 450,
+    "bestseller": true
+  },
+  {
+    "id": 2,
+    "name": "Samsung Galaxy S24 Ultra",
+    "category": "samsung",
+    "price": 129999,
+    "image": "https://images.unsplash.com/photo-1707222379374-2796e19f727c?w=500&auto=format&fit=crop&q=60",
+    "rating": 5,
+    "reviews": 89,
+    "soldCount": 320,
+    "bestseller": false
+  },
+  {
+    "id": 3,
+    "name": "Galaxy Buds2 Pro",
+    "category": "buds",
+    "price": 14999,
+    "image": "https://images.unsplash.com/photo-1655560370044-6b940e837ea6?w=500&auto=format&fit=crop&q=60",
+    "rating": 4,
+    "reviews": 56,
+    "soldCount": 210,
+    "bestseller": false
+  },
+  {
+    "id": 4,
+    "name": "Premium Clear Case",
+    "category": "others",
+    "price": 999,
+    "image": "https://images.unsplash.com/photo-1603313011101-31c167ac3331?w=500&auto=format&fit=crop&q=60",
+    "rating": 4,
+    "reviews": 234,
+    "soldCount": 1500,
+    "bestseller": true
+  }
+]

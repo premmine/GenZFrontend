@@ -3,6 +3,8 @@
  * Handles real-time status updates and timeline animation
  */
 
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const orderId = urlParams.get('id');

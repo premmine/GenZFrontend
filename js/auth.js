@@ -1,3 +1,5 @@
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 // ==========================
 // AUTHENTICATION SCRIPT
 // ==========================

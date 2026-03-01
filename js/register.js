@@ -1,3 +1,5 @@
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 const sendBtn = document.getElementById("sendOtpBtn");
 const verifyBtn = document.getElementById("verifyBtn");
 const otpSection = document.getElementById("otpSection");

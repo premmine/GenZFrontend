@@ -2,6 +2,8 @@
    PRODUCT DETAILS JAVASCRIPT
    ========================================================= */
 
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const productId = urlParams.get('id');

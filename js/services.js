@@ -2,6 +2,8 @@
    SERVICES PAGE LOGIC
    ========================================================= */
 
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 /**
  * Page-specific logic for Services.
  * Note: Common features like Navbar auth, Cart counts, and Live time

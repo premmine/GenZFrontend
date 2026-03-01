@@ -3,6 +3,8 @@
  * Handles fetching, filtering, and order actions
  */
 
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check authentication
     if (!localStorage.getItem('token')) {

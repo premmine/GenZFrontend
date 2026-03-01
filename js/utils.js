@@ -1,6 +1,6 @@
 // Utility Functions for GenziKart E-commerce
 
-const API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
 
 /**
  * Formats an image URL for display.

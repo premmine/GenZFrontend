@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Premium Phone Cases | GenziKart </title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="images/logo.jpg" type="image/jpeg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -56,7 +57,7 @@
                     </a>
 
                     <!-- WhatsApp -->
-                    <a href="https://wa.me/9536109375" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
+                    <a href="https://wa.me/9508103997" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
                         <i class="fab fa-whatsapp text-xl text-green-500"></i>
                     </a>
 
@@ -211,6 +212,7 @@
         </div>
     </section>
 
+
     <!-- ============================================================
          PRODUCT LISTINGS 
          (Best Sellers & Category Filtering)
@@ -263,98 +265,79 @@
     <section id="recentlyViewedSection" class="py-16 bg-white hidden" data-testid="recently-viewed-section">
         <div class="max-w-7xl mx-auto px-4">
             <h2 class="section-title">Recently Viewed</h2>
-            <div id="recentlyViewedGrid" class="horizontal-scroll">
+            <div id="recentlyViewedGrid" class="rv-grid">
             </div>
         </div>
     </section>
 
-    <!-- Offer & Trust Section -->
-    <section class="py-16 bg-gradient-to-br from-amber-50 to-orange-50" data-testid="offer-section">
+    <!-- ============================================================
+         ANIMATED OFFER VIDEO SHOWCASE (Refined Premium UI)
+         ============================================================ -->
+    <section id="offerShowcase" class="hidden">
         <div class="max-w-7xl mx-auto px-4">
-            <div class="text-center mb-12">
-                <h2 class="section-title">Limited Time Offer</h2>
-                <div id="countdown" class="countdown" data-testid="countdown-timer">
-                    <div class="countdown-item">
-                        <span id="days" class="countdown-number">00</span>
+            <!-- Header -->
+            <div class="text-center mb-10">
+                <p
+                    style="font-size:10px; letter-spacing:0.2em; text-transform:uppercase; font-weight:700; color:rgba(255,255,255,0.5); margin-bottom:10px;">
+                    LIMITED TIME OFFER</p>
+                <h2 style="font-size:2rem; font-weight:800; color:#fff; margin-bottom:30px;">Grab the Deal Before It's
+                    Gone!</h2>
+
+                <!-- Countdown Timer -->
+                <div class="countdown-container">
+                    <div class="countdown-box">
+                        <span id="days" class="countdown-value">00</span>
                         <span class="countdown-label">Days</span>
                     </div>
-                    <div class="countdown-item">
-                        <span id="hours" class="countdown-number">00</span>
+                    <div class="countdown-separator">:</div>
+                    <div class="countdown-box">
+                        <span id="hours" class="countdown-value">00</span>
                         <span class="countdown-label">Hours</span>
                     </div>
-                    <div class="countdown-item">
-                        <span id="minutes" class="countdown-number">00</span>
-                        <span class="countdown-label">Minutes</span>
+                    <div class="countdown-separator">:</div>
+                    <div class="countdown-box">
+                        <span id="minutes" class="countdown-value">00</span>
+                        <span class="countdown-label">Mins</span>
                     </div>
-                    <div class="countdown-item">
-                        <span id="seconds" class="countdown-number">00</span>
-                        <span class="countdown-label">Seconds</span>
+                    <div class="countdown-separator">:</div>
+                    <div class="countdown-box">
+                        <span id="seconds" class="countdown-value">00</span>
+                        <span class="countdown-label">Secs</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Review Videos -->
-            <div class="grid md:grid-cols-3 gap-6 mb-12">
-                <div class="video-card" data-testid="review-video-1">
-                    <video controls class="w-full rounded-lg"
-                        poster="https://images.unsplash.com/photo-1556656793-08538906a9f8?w=400&h=300&fit=crop">
-                        <source src="#" type="video/mp4">
-                    </video>
-                    <p class="mt-3 text-sm text-slate-600">⭐⭐⭐⭐⭐ "Best quality cases!" - Rahul S.</p>
-                </div>
-                <div class="video-card" data-testid="review-video-2">
-                    <video controls class="w-full rounded-lg"
-                        poster="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=300&fit=crop">
-                        <source src="#" type="video/mp4">
-                    </video>
-                    <p class="mt-3 text-sm text-slate-600">⭐⭐⭐⭐⭐ "Never yellows!" - Priya M.</p>
-                </div>
-                <div class="video-card" data-testid="product-video">
-                    <video controls class="w-full rounded-lg"
-                        poster="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400&h=300&fit=crop">
-                        <source src="#" type="video/mp4">
-                    </video>
-                    <p class="mt-3 text-sm text-slate-600">Premium Quality Showcase</p>
-                </div>
+            <!-- Dynamic Video Grid (Rendered by main.js) -->
+            <div id="videoShowcaseGrid" class="video-showcase-grid mb-16">
+                <!-- Video cards will be injected by main.js -->
             </div>
 
-            <!-- Comments Section -->
-            <div class="max-w-3xl mx-auto" data-testid="comments-section">
-                <h3 class="text-2xl font-bold mb-6">Customer Reviews</h3>
-                <div class="space-y-4">
-                    <div class="comment-card">
-                        <div class="flex items-start gap-4">
-                            <div class="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center">
-                                <i class="fas fa-user text-slate-600"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-semibold">Amit Kumar</h4>
-                                <p class="text-yellow-500 text-sm">⭐⭐⭐⭐⭐</p>
-                                <p class="text-slate-600 mt-2">Amazing quality! The case hasn't yellowed even after 6
-                                    months.</p>
-                            </div>
-                        </div>
+            <!-- Showcase Footer: Customer Reviews -->
+            <div class="max-w-4xl mx-auto">
+                <h6 class="showcase-reviews-title">What Customers Are Saying</h6>
+
+                <div id="featuredReviewsCarousel" class="relative overflow-hidden" style="height:140px;">
+                    <div id="featuredReviewsContainer"
+                        class="flex flex-col gap-4 transition-transform duration-1000 ease-in-out">
+                        <!-- Review cards injected by main.js -->
                     </div>
-                    <div class="comment-card">
-                        <div class="flex items-start gap-4">
-                            <div class="w-10 h-10 rounded-full bg-slate-300 flex items-center justify-center">
-                                <i class="fas fa-user text-slate-600"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-semibold">Sneha Patel</h4>
-                                <p class="text-yellow-500 text-sm">⭐⭐⭐⭐⭐</p>
-                                <p class="text-slate-600 mt-2">Perfect fit for my iPhone 16. Highly recommended!</p>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+
+                <!-- Pagination Dots -->
+                <div class="flex justify-center gap-2 mt-6">
+                    <div class="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(255,255,255,0.2)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(255,255,255,0.2)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:rgba(255,255,255,0.2)"></div>
                 </div>
             </div>
         </div>
     </section>
+
 
     <!-- Floating Support Buttons -->
     <div class="fixed bottom-6 right-6 flex flex-col gap-3 z-40" data-testid="floating-support">
-        <a href="https://wa.me/9536109375" target="_blank" class="floating-btn bg-green-500 hover:bg-green-600"
+        <a href="https://wa.me/9508103997" target="_blank" class="floating-btn bg-green-500 hover:bg-green-600"
             data-testid="floating-whatsapp">
             <i class="fab fa-whatsapp text-2xl"></i>
         </a>
@@ -418,8 +401,8 @@
         </div>
     </footer>
 
-    <script src="js/utils.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/utils.js?v=20260228"></script>
+    <script src="js/main.js?v=20260228"></script>
 </body>
 
 </html>

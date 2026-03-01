@@ -547,6 +547,169 @@ body {
     background: #94a3b8;
 }
 
+/* ============================================================
+   RECENTLY VIEWED — 4-Column Equal Grid Cards
+   ============================================================ */
+
+/* Grid container: always 4 equal columns */
+.rv-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .rv-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .rv-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+}
+
+.rv-card {
+    background: white;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    border: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+}
+
+.rv-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.13);
+}
+
+.rv-card-img-wrap {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: #f8fafc;
+}
+
+.rv-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.35s ease;
+}
+
+.rv-card:hover .rv-card-img {
+    transform: scale(1.07);
+}
+
+.rv-wish-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+    font-size: 12px;
+}
+
+.rv-wish-btn i {
+    color: #cbd5e1;
+    transition: color 0.2s;
+}
+
+.rv-wish-btn:hover i,
+.rv-wish-btn.active i {
+    color: #ef4444;
+}
+
+.rv-wish-btn:hover {
+    transform: scale(1.15);
+}
+
+.rv-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 9999px;
+}
+
+.rv-card-body {
+    padding: 10px 12px 12px;
+}
+
+.rv-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.rv-pricing {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.rv-price {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.rv-orig {
+    font-size: 11px;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+.rv-cart-btn {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.rv-cart-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.03);
+}
+
+
 /* Countdown */
 .countdown {
     display: flex;
@@ -1424,6 +1587,8 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    overflow-y: auto;
+    padding: 20px;
 }
 
 .form-select,
@@ -1619,5 +1784,298 @@ body {
     100% {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+/* Vertical Review Cards */
+.review-card-vertical {
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.review-card-vertical:hover {
+    transform: translateX(8px);
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(255, 255, 255, 1);
+}
+
+.review-card-vertical i.fa-star {
+    margin-right: 1px;
+}
+
+/* ============================================================
+   PREMIUM OFFER SHOWCASE (Dark & Glossy Style)
+   ============================================================ */
+
+#offerShowcase {
+    background: radial-gradient(circle at top, #1e1e1e 0%, #0a0a0a 100%);
+    padding: 80px 0;
+    color: #ffffff;
+    overflow: hidden;
+    position: relative;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#offerShowcase::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(251, 146, 60, 0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.countdown-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 50px;
+}
+
+.countdown-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    width: 85px;
+    height: 100px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.05);
+}
+
+.countdown-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.countdown-label {
+    font-size: 0.7rem;
+    text-transform: capitalize;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 5px;
+}
+
+.countdown-separator {
+    display: flex;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 25px;
+}
+
+.video-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+}
+
+.video-card {
+    background: #111;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    transition: all 0.4s ease;
+}
+
+.video-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(251, 146, 60, 0.3);
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+}
+
+.video-container {
+    width: 100%;
+    height: 320px;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+}
+
+.video-card video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-overlay-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 25px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.7) 40%, transparent);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    /* Let clicks pass through the transparent top area to reach the iframe */
+    pointer-events: none;
+}
+
+.video-overlay-content .video-btns,
+.video-overlay-content .video-btns a,
+.video-overlay-content .video-info {
+    pointer-events: auto;
+}
+
+.video-info {
+    flex: 1;
+}
+
+.video-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.video-offer {
+    color: #fb923c;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+}
+
+.video-rating {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.rating-stars {
+    color: #fb923c;
+}
+
+.video-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 160px;
+}
+
+.btn-showcase-buy {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #ffffff;
+    font-weight: 700;
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 16px rgba(234, 88, 12, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-showcase-buy:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(234, 88, 12, 0.4);
+}
+
+.btn-showcase-view {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.btn-showcase-view:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Review Carousel Styles in Showcase */
+.showcase-reviews-title {
+    text-align: center;
+    font-size: 1.1rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 25px;
+    font-weight: 500;
+}
+
+.showcase-review-slide {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 20px;
+    border-radius: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.review-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #fb923c;
+}
+
+.review-content {
+    flex: 1;
+}
+
+.review-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.review-author {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.review-verified {
+    font-size: 0.75rem;
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.review-text-quote {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-style: italic;
+    line-height: 1.4;
+}
+
+@media (max-width: 992px) {
+    .video-showcase-grid {
+        grid-template-columns: 1fr;
+        padding: 0 20px;
+    }
+
+    .video-overlay-content {
+        padding: 20px;
+    }
+
+    .video-title {
+        font-size: 1.2rem;
     }
 }

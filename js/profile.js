@@ -4,6 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileName = document.getElementById('profileName');
     const profilePhone = document.getElementById('profilePhone');
     const profileWhatsapp = document.getElementById('profileWhatsapp');
+    const profilePincode = document.getElementById('profilePincode');
+    const pincodeStatusDot = document.getElementById('pincodeStatusDot');
+    const pincodeStatusText = document.getElementById('pincodeStatusText');
+    const pincodeError = document.getElementById('pincodeError');
     const addrLine1 = document.getElementById('addrLine1');
     const addrLine2 = document.getElementById('addrLine2');
     const addrCity = document.getElementById('addrCity');
@@ -11,6 +15,92 @@ document.addEventListener('DOMContentLoaded', () => {
     const addrTypeInput = document.getElementById('addrType');
     const sameAsPhone = document.getElementById('sameAsPhone');
     const loadingOverlay = document.getElementById('loadingOverlay');
+    const phoneError = document.getElementById('phoneError');
+    const whatsappError = document.getElementById('whatsappError');
+
+    // ── Pin Code helpers ──────────────────────────────────────────────
+    function setPincodeStatus(state, text) {
+        pincodeError.classList.add('hidden');
+        pincodeStatusDot.className = 'w-2.5 h-2.5 rounded-full flex-shrink-0';
+        if (state === 'idle') {
+            pincodeStatusDot.classList.add('bg-gray-300');
+            pincodeStatusText.textContent = text || 'Awaiting PIN';
+        } else if (state === 'loading') {
+            pincodeStatusDot.classList.add('bg-yellow-400', 'animate-pulse');
+            pincodeStatusText.textContent = 'Fetching...';
+        } else if (state === 'success') {
+            pincodeStatusDot.classList.add('bg-green-500');
+            pincodeStatusText.textContent = text;
+        } else if (state === 'error') {
+            pincodeStatusDot.classList.add('bg-red-400');
+            pincodeStatusText.textContent = 'Invalid PIN';
+            pincodeError.classList.remove('hidden');
+        }
+    }
+
+    function setCityStateLocked(lock) {
+        [addrCity, addrState].forEach(el => {
+            if (lock) {
+                el.readOnly = true;
+                el.classList.add('bg-gray-50', 'text-gray-500', 'cursor-not-allowed');
+            } else {
+                el.readOnly = false;
+                el.classList.remove('bg-gray-50', 'text-gray-500', 'cursor-not-allowed');
+            }
+        });
+    }
+
+    async function fetchPincodeData(pin) {
+        setPincodeStatus('loading');
+        try {
+            const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+            const data = await res.json();
+            if (data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+                const po = data[0].PostOffice[0];
+                const district = po.District;
+                const state = po.State;
+                addrCity.value = district;
+                addrState.value = state;
+                setCityStateLocked(true);
+                setPincodeStatus('success', `${district}`);
+                // store district on the input for payload use
+                profilePincode.dataset.district = district;
+                profilePincode.dataset.state = state;
+            } else {
+                addrCity.value = '';
+                addrState.value = '';
+                setCityStateLocked(false);
+                setPincodeStatus('error');
+                profilePincode.dataset.district = '';
+                profilePincode.dataset.state = '';
+            }
+        } catch (err) {
+            setPincodeStatus('error');
+        }
+    }
+
+    // Digit-only guard + auto-trigger on 6th digit
+    profilePincode.addEventListener('keypress', (e) => {
+        if (!/^\d$/.test(e.key)) e.preventDefault();
+    });
+
+    profilePincode.addEventListener('input', () => {
+        const val = profilePincode.value.replace(/\D/g, '');
+        profilePincode.value = val;
+        if (val.length === 6) {
+            fetchPincodeData(val);
+        } else {
+            setPincodeStatus('idle', val.length > 0 ? `${val.length}/6 digits` : 'Awaiting PIN');
+            if (val.length < 6) {
+                addrCity.value = '';
+                addrState.value = '';
+                setCityStateLocked(false);
+                profilePincode.dataset.district = '';
+                profilePincode.dataset.state = '';
+            }
+        }
+    });
+    // ─────────────────────────────────────────────────────────────────
 
     // Address Type Toggle
     document.querySelectorAll('.addr-type-btn').forEach(btn => {
@@ -47,8 +137,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const addr = currentUser.address || {};
                 addrLine1.value = addr.line1 || '';
                 addrLine2.value = addr.line2 || '';
-                addrCity.value = addr.city || '';
-                addrState.value = addr.state || '';
+                // Restore pincode and lock city/state if present
+                if (addr.pincode) {
+                    profilePincode.value = addr.pincode;
+                    profilePincode.dataset.district = addr.district || '';
+                    profilePincode.dataset.state = addr.state || '';
+                    addrCity.value = addr.city || '';
+                    addrState.value = addr.state || '';
+                    if (addr.district) {
+                        setCityStateLocked(true);
+                        setPincodeStatus('success', addr.district);
+                    }
+                } else {
+                    addrCity.value = addr.city || '';
+                    addrState.value = addr.state || '';
+                }
 
                 // Restore address type toggle
                 const savedType = addr.type || 'home';
@@ -89,8 +192,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     profilePhone.addEventListener('input', () => {
+        // Numeric only
+        profilePhone.value = profilePhone.value.replace(/\D/g, '').slice(0, 10);
+
+        const isValid = profilePhone.value.length === 10;
+        if (profilePhone.value.length > 0 && !isValid) {
+            phoneError.classList.remove('hidden');
+            profilePhone.classList.add('border-red-500');
+        } else {
+            phoneError.classList.add('hidden');
+            profilePhone.classList.remove('border-red-500');
+        }
+
         if (sameAsPhone.checked) {
             profileWhatsapp.value = profilePhone.value;
+            // Also trigger whatsapp validation
+            profileWhatsapp.dispatchEvent(new Event('input'));
+        }
+    });
+
+    profileWhatsapp.addEventListener('input', () => {
+        // Numeric only
+        profileWhatsapp.value = profileWhatsapp.value.replace(/\D/g, '').slice(0, 10);
+
+        const isValid = profileWhatsapp.value.length === 10;
+        if (profileWhatsapp.value.length > 0 && !isValid) {
+            whatsappError.classList.remove('hidden');
+            profileWhatsapp.classList.add('border-red-500');
+        } else {
+            whatsappError.classList.add('hidden');
+            profileWhatsapp.classList.remove('border-red-500');
         }
     });
 
@@ -236,6 +367,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show loading
         loadingOverlay.classList.remove('hidden');
 
+        // Validation
+        const phone = profilePhone.value.replace(/\D/g, '');
+        const whatsapp = profileWhatsapp.value.replace(/\D/g, '');
+
+        if (phone.length !== 10) {
+            showModalAlert('Please enter a valid 10-digit phone number.', 'error');
+            loadingOverlay.classList.add('hidden');
+            profilePhone.focus();
+            return;
+        }
+
+        if (whatsapp.length !== 10) {
+            showModalAlert('Please enter a valid 10-digit WhatsApp number.', 'error');
+            loadingOverlay.classList.add('hidden');
+            profileWhatsapp.focus();
+            return;
+        }
+
+        if (profilePincode.value.length !== 6) {
+            showModalAlert('Please enter a valid 6-digit pin code.', 'error');
+            loadingOverlay.classList.add('hidden');
+            profilePincode.focus();
+            return;
+        }
+
         try {
             // Fetch current user properly to get ID
             const usersRes = await fetch(`${API_BASE_URL}/users`, {
@@ -255,6 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 address: {
                     line1: addrLine1.value.trim(),
                     line2: addrLine2.value.trim(),
+                    pincode: profilePincode.value.trim(),
+                    district: profilePincode.dataset.district || '',
                     city: addrCity.value.trim(),
                     state: addrState.value.trim(),
                     type: addrTypeInput.value

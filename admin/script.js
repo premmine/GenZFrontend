@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 const state = {
     currentPage: 'dashboard',
@@ -7,6 +7,7 @@ const state = {
     customers: [],
     reviews: [],
     discounts: [],
+    offerVideos: [],
     stats: {
         sales: 0,
         salesChange: 0,
@@ -29,6 +30,24 @@ function formatCurrency(amount) {
         maximumFractionDigits: 0
     }).format(amount);
 }
+
+/**
+ * Image URL Formatter - Supports Google Drive thumbnails
+ */
+function formatImageUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+
+    // Handle Google Drive links
+    if (url.includes('drive.google.com')) {
+        const driveIdMatch = url.match(/\/file\/d\/([^\/]+)/) || url.match(/id=([^\&]+)/);
+        if (driveIdMatch && driveIdMatch[1]) {
+            const fileId = driveIdMatch[1];
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+        }
+    }
+    return url;
+}
+
 
 // ==========================================
 // 2. INITIALIZATION
@@ -99,7 +118,7 @@ async function authFetch(url, options = {}) {
     if (response.status === 401) {
         console.error("🔒 Session expired or unauthorized, redirecting...");
         localStorage.removeItem('token');
-        window.location.href = '../login.html';
+        window.location.href = 'login.html';
         return null;
     }
 
@@ -113,13 +132,14 @@ async function fetchAllData() {
             fetchOrders(),
             fetchCustomers(),
             fetchReviews(),
-            fetchDiscounts()
+            fetchDiscounts(),
+            fetchOfferVideos()
         ]);
         updateStats();
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
         showToast('Session expired. Please login again.', 'error');
-        // window.location.href = '../login.html';
+        // window.location.href = 'login.html';
     }
 }
 
@@ -265,6 +285,9 @@ function renderPage(page) {
         case 'settings':
             renderSettings(mainContent);
             break;
+        case 'offers':
+            renderOffers(mainContent);
+            break;
         default:
             renderDashboard(mainContent);
     }
@@ -409,7 +432,8 @@ function renderStatusBadge(status) {
         'inactive': 'bg-gray-100 text-gray-700',
         'paid': 'bg-green-100 text-green-700',
         'refunded': 'bg-orange-100 text-orange-700',
-        'approved': 'bg-green-100 text-green-700'
+        'approved': 'bg-green-100 text-green-700',
+        'returned': 'bg-orange-100 text-orange-700'
     };
 
     const style = styles[status] || 'bg-gray-100 text-gray-700';
@@ -690,49 +714,58 @@ async function saveProduct(event, id) {
         price: parseFloat(formData.get('price')),
         stock: parseInt(formData.get('stock')),
         status: formData.get('status'),
-        image: formatImageUrl(formData.get('image')) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&h=100&fit=crop',
+        image: formatImageUrl(formData.get('image')) || '',
         category: formData.get('category') || 'General',
-        bestseller: form.querySelector('input[name="bestseller"]').checked,
+        bestseller: form.querySelector('[name="bestseller"]').checked,
         description: formData.get('description'),
         gallery: formData.get('gallery') ? formData.get('gallery').split(/[,\n]/).map(s => formatImageUrl(s.trim())).filter(s => s !== '' && s.startsWith('http')) : [],
         highlights: formData.get('highlights') ? formData.get('highlights').split('\n').map(s => s.trim()).filter(s => s !== '') : []
     };
+
+    // Simple validation
+    if (isNaN(productData.price) || productData.price < 0) {
+        showToast('Please enter a valid price', 'error');
+        return;
+    }
 
     try {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="inline-block animate-spin mr-2">◌</span> Saving...';
 
         let response;
-        if (id) {
+        if (id && id !== 'null') {
             // Update existing product
-            response = await fetch(`${API_BASE_URL}/products/${id}`, {
+            response = await authFetch(`${API_BASE_URL}/products/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(productData)
             });
         } else {
             // Add new product
-            response = await fetch(`${API_BASE_URL}/products`, {
+            response = await authFetch(`${API_BASE_URL}/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(productData)
             });
         }
 
-        if (!response.ok) throw new Error('Failed to save product');
+        const result = await response.json();
 
-        const savedProduct = await response.json();
-        showToast(`Product ${id ? 'updated' : 'created'} successfully!`, 'success');
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to save product');
+        }
+
+        showToast(`Product ${id && id !== 'null' ? 'updated' : 'created'} successfully!`, 'success');
 
         // Refresh state and UI
         await fetchProducts();
         closeModal();
     } catch (error) {
         console.error('Error saving product:', error);
-        showToast(`Error: ${error.message}`, 'error');
+        showToast(`${error.message}`, 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = id ? 'Update' : 'Create';
+        submitBtn.textContent = id && id !== 'null' ? 'Update' : 'Create';
     }
 }
 
@@ -740,7 +773,7 @@ async function deleteProduct(id) {
     const product = state.products.find(p => p._id === id || p.id === id); // Handle both formats
     if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
         try {
-            const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+            const response = await authFetch(`${API_BASE_URL}/products/${id}`, {
                 method: 'DELETE'
             });
 
@@ -766,6 +799,16 @@ function renderOrders(container) {
                 <h1 class="text-2xl font-bold text-gray-900">Orders</h1>
                 <p class="text-gray-500 mt-1">Manage customer orders</p>
             </div>
+            <div class="flex gap-2">
+                <button onclick="showStatusProductDetails('delivered')" class="inline-flex items-center px-4 py-2 border border-green-200 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
+                    <i data-lucide="package-check" class="w-4 h-4 mr-2"></i>
+                    Delivered Details
+                </button>
+                <button onclick="showStatusProductDetails('returned')" class="inline-flex items-center px-4 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
+                    Return Details
+                </button>
+            </div>
         </div>
         
         <!-- Filters -->
@@ -784,6 +827,7 @@ function renderOrders(container) {
                     <option value="processing">Processing</option>
                     <option value="shipped">Shipped</option>
                     <option value="delivered">Delivered</option>
+                    <option value="returned">Returned</option>
                     <option value="cancelled">Cancelled</option>
                 </select>
             </div>
@@ -946,7 +990,7 @@ async function updateOrderStatus(id) {
     const newStatus = statuses[nextIndex];
 
     try {
-        const response = await fetch(`${API_BASE_URL}/orders/${id}`, {
+        const response = await authFetch(`${API_BASE_URL}/orders/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
@@ -960,6 +1004,83 @@ async function updateOrderStatus(id) {
         console.error('Error updating order status:', error);
         showToast('Error updating status', 'error');
     }
+}
+
+function showStatusProductDetails(status) {
+    const orders = state.orders.filter(o => o.status === status);
+
+    if (orders.length === 0) {
+        showToast(`No ${status} orders found`, 'info');
+        return;
+    }
+
+    // Aggregate products
+    const productAggregation = {};
+    orders.forEach(order => {
+        const items = order.items || [];
+        items.forEach(item => {
+            const prodName = item.name;
+            if (!productAggregation[prodName]) {
+                productAggregation[prodName] = {
+                    name: prodName,
+                    quantity: 0,
+                    orders: []
+                };
+            }
+            productAggregation[prodName].quantity += item.quantity;
+            productAggregation[prodName].orders.push(order.id);
+        });
+    });
+
+    const aggregatedList = Object.values(productAggregation).sort((a, b) => b.quantity - a.quantity);
+
+    const modalContent = document.getElementById('modal-content');
+    modalContent.innerHTML = `
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-900 capitalize">${status} Products Detail</h2>
+            <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+        </div>
+        
+        <div class="mb-4">
+            <p class="text-sm text-gray-500 font-medium">Summary of products from all ${orders.length} ${status} orders.</p>
+        </div>
+
+        <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
+            <div class="overflow-x-auto max-h-[60vh]">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product Name</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Total Qty</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Related Orders</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        ${aggregatedList.map(prod => `
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">${prod.name}</td>
+                                <td class="px-6 py-4 text-sm text-center font-bold text-primary">${prod.quantity}</td>
+                                <td class="px-6 py-4 text-xs text-gray-500 max-w-xs">
+                                    <div class="flex flex-wrap gap-1">
+                                        ${prod.orders.map(id => `<span class="bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-mono">${id}</span>`).join('')}
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="flex justify-end mt-8">
+            <button onclick="closeModal()" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">Close Report</button>
+        </div>
+    `;
+
+    document.getElementById('generic-modal').classList.remove('hidden');
+    lucide.createIcons();
 }
 
 // ==========================================
@@ -1108,7 +1229,7 @@ async function toggleUserBlock(id) {
 
     if (confirm(`Are you sure you want to ${action} this user?`)) {
         try {
-            const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+            const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isBlocked: newBlockedStatus })
@@ -1149,13 +1270,17 @@ function renderReviews(container) {
                             <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rating</th>
                             <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Comment</th>
                             <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Show on Home</th>
                             <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        ${state.reviews.map(review => `
+                        ${state.reviews.map(review => {
+        const product = state.products.find(p => p._id === review.product || p.id === review.product);
+        const productName = product ? product.name : review.product;
+        return `
                             <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">${review.product}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">${productName}</td>
                                 <td class="px-6 py-4 text-sm text-gray-600">${review.user}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-1">
@@ -1163,25 +1288,40 @@ function renderReviews(container) {
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">${review.comment}</td>
-                                <td class="px-6 py-4">${renderStatusBadge(review.status)}</td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        ${review.isApproved ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase">Approved</span>' : '<span class="bg-gray-100 text-gray-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase">Pending</span>'}
+                                        ${review.isFeatured ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter">Featured</span>' : ''}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex justify-center">
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" class="sr-only peer" ${review.isFeatured ? 'checked' : ''} 
+                                                   onchange="toggleReviewFeatured('${review._id || review.id}', ${review.isFeatured || false})">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                                        </label>
+                                    </div>
+                                </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
-                                        ${review.status === 'pending' ? `
-                                            <button onclick="approveReview(${review.id})" class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
+                                        ${!review.isApproved ? `
+                                            <button onclick="approveReview('${review._id || review.id}')" class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
                                                 <i data-lucide="check" class="w-4 h-4"></i>
                                             </button>
-                                            <button onclick="rejectReview(${review.id})" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reject">
+                                            <button onclick="rejectReview('${review._id || review.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reject">
                                                 <i data-lucide="x" class="w-4 h-4"></i>
                                             </button>
                                         ` : `
-                                            <button onclick="deleteReview(${review.id})" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                            <button onclick="deleteReview('${review._id || review.id}')" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                             </button>
                                         `}
                                     </div>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `;
+    }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -1193,22 +1333,47 @@ function renderReviews(container) {
 
 async function approveReview(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+        const response = await authFetch(`${API_BASE_URL}/reviews/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'approved' })
+            body: JSON.stringify({ isApproved: true, status: 'approved' })
         });
-        if (!response.ok) throw new Error('Failed to approve review');
-        showToast('Review approved!', 'success');
-        await fetchReviews();
+        if (response.ok) {
+            showToast('Review approved successfully!');
+            fetchReviews();
+        }
     } catch (error) {
         console.error('Error approving review:', error);
+        showToast('Failed to approve review', 'error');
+    }
+}
+
+async function toggleReviewFeatured(id, currentStatus) {
+    try {
+        const newStatus = !currentStatus;
+        const response = await authFetch(`${API_BASE_URL}/reviews/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            // If featuring, also ensure it's approved
+            body: JSON.stringify({
+                isFeatured: newStatus,
+                isApproved: newStatus ? true : undefined,
+                status: newStatus ? 'approved' : undefined
+            })
+        });
+        if (response.ok) {
+            showToast(newStatus ? 'Added to Home Page' : 'Removed from Home Page');
+            fetchReviews();
+        }
+    } catch (error) {
+        console.error('Error toggling featured status:', error);
+        showToast('Failed to update status', 'error');
     }
 }
 
 async function rejectReview(id) {
     try {
-        const response = await fetch(`${API_BASE_URL} / reviews / ${id}`, {
+        const response = await authFetch(`${API_BASE_URL}/reviews/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'rejected' })
@@ -1224,12 +1389,13 @@ async function rejectReview(id) {
 async function deleteReview(id) {
     if (confirm('Are you sure you want to delete this review?')) {
         try {
-            const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+            const response = await authFetch(`${API_BASE_URL}/reviews/${id}`, {
                 method: 'DELETE'
             });
-            if (!response.ok) throw new Error('Failed to delete review');
-            showToast('Review deleted!', 'success');
-            await fetchReviews();
+            if (response.ok) {
+                showToast('Review deleted');
+                fetchReviews();
+            }
         } catch (error) {
             console.error('Error deleting review:', error);
         }
@@ -1364,7 +1530,7 @@ async function saveDiscount(event) {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/discounts`, {
+        const response = await authFetch(`${API_BASE_URL}/discounts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(discountData)
@@ -1384,7 +1550,7 @@ async function toggleDiscountStatus(id) {
 
     const newStatus = discount.status === 'active' ? 'inactive' : 'active';
     try {
-        const response = await fetch(`${API_BASE_URL}/discounts/${id}`, {
+        const response = await authFetch(`${API_BASE_URL}/discounts/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
@@ -1400,7 +1566,7 @@ async function toggleDiscountStatus(id) {
 async function deleteDiscount(id) {
     if (confirm('Are you sure you want to delete this discount?')) {
         try {
-            const response = await fetch(`${API_BASE_URL}/discounts/${id}`, {
+            const response = await authFetch(`${API_BASE_URL}/discounts/${id}`, {
                 method: 'DELETE'
             });
             if (!response.ok) throw new Error('Failed to delete discount');
@@ -1430,7 +1596,255 @@ function deleteDiscount(id) {
 }
 
 // ==========================================
-// 10. SETTINGS PAGE
+// 10. OFFER VIDEOS MANAGEMENT
+// ==========================================
+
+async function fetchOfferVideos() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/offer-videos`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        state.offerVideos = await response.json();
+    } catch (error) {
+        console.error('Error fetching offer videos:', error);
+    }
+}
+
+function renderOffers(container) {
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Offer Video Showcase</h1>
+                <p class="text-gray-500 mt-1">Manage premiums video offers on the homepage</p>
+            </div>
+            <button onclick="openOfferModal()" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                Add Offer Video
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            ${state.offerVideos.length === 0 ? `
+                <div class="col-span-full bg-white p-12 rounded-2xl border-2 border-dashed border-gray-100 text-center">
+                    <p class="text-gray-500">No offer videos added yet. Click 'Add Offer Video' to start.</p>
+                </div>
+            ` : state.offerVideos.map(offer => `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col md:flex-row group hover:shadow-lg transition-all">
+                    <div class="w-full md:w-32 h-32 bg-black relative">
+                    <div class="w-full h-full">
+                        ${typeof renderVideoPlayer === 'function' ? renderVideoPlayer(offer.videoUrl) : '<div class="w-full h-full bg-gray-900 flex items-center justify-center text-gray-700 font-medium">Video Preview Unavailable</div>'}
+                    </div>
+                        <div class="absolute inset-0 bg-black/20 group-hover:bg-transparent flex items-center justify-center transition-all">
+                            <i data-lucide="video" class="w-6 h-6 text-white/50"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 p-6 flex flex-col">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${offer.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
+                                ${offer.isActive ? 'Active' : 'Disabled'}
+                            </span>
+                            <div class="flex gap-2">
+                                <button onclick="openOfferModal('${offer._id}')" class="p-2 text-gray-400 hover:text-primary hover:bg-indigo-50 rounded-lg">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteOffer('${offer._id}')" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <h3 class="font-bold text-gray-900 line-clamp-1">${offer.title}</h3>
+                        <p class="text-xs text-indigo-600 font-semibold mb-3">${offer.offerText}</p>
+                        
+                        <div class="mt-auto space-y-2">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-500">Linked Product:</span>
+                                <span class="font-medium text-gray-700">${offer.productId?.name || 'Unknown'}</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-500">Expiry Date:</span>
+                                <span class="font-medium text-red-600">${new Date(offer.expiryDate).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+
+                        <button onclick="toggleOfferStatus('${offer._id}')" 
+                                class="mt-4 w-full py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                            ${offer.isActive ? 'Disable Offer' : 'Enable Offer'}
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    lucide.createIcons();
+}
+
+function openOfferModal(offerId = null) {
+    const offer = offerId ? state.offerVideos.find(o => o._id === offerId) : null;
+    const modalContent = document.getElementById('modal-content');
+
+    modalContent.innerHTML = `
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-gray-900">${offer ? 'Edit Offer Video' : 'Add Offer Video'}</h2>
+            <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+        </div>
+
+        <form id="offer-form" onsubmit="saveOffer(event, '${offerId || ''}')">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Product</label>
+                    <select name="productId" required class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                        <option value="">-- Choose a Product --</option>
+                        ${state.products.map(p => `
+                            <option value="${p._id}" ${offer && offer.productId?._id === p._id ? 'selected' : ''}>${p.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Video URL (Direct link to MP4)</label>
+                    <input type="url" name="videoUrl" value="${offer ? offer.videoUrl : ''}" placeholder="https://example.com/video.mp4" required
+                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Offer Title</label>
+                    <input type="text" name="title" value="${offer ? offer.title : ''}" placeholder="e.g., Premium iPhone Case Collection" required
+                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Offer Sub-text</label>
+                    <input type="text" name="offerText" value="${offer ? offer.offerText : ''}" placeholder="e.g., FLAT 30% OFF - TODAY ONLY" required
+                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
+                        <input type="number" name="discountPercentage" value="${offer ? offer.discountPercentage : ''}" placeholder="30"
+                            class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                        <input type="date" name="expiryDate" value="${offer ? offer.expiryDate.split('T')[0] : ''}" required
+                            class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" name="isActive" id="isActive" ${!offer || offer.isActive ? 'checked' : ''} class="w-4 h-4 rounded text-primary focus:ring-primary">
+                    <label for="isActive" class="text-sm font-medium text-gray-700">Make Active on Homepage</label>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 font-medium hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+                    ${offer ? 'Update Offer' : 'Create Offer'}
+                </button>
+            </div>
+        </form>
+    `;
+    openModal();
+    lucide.createIcons();
+}
+
+async function saveOffer(event, offerId) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = {
+        productId: formData.get('productId'),
+        videoUrl: formData.get('videoUrl'),
+        title: formData.get('title'),
+        offerText: formData.get('offerText'),
+        discountPercentage: Number(formData.get('discountPercentage')),
+        expiryDate: formData.get('expiryDate'),
+        isActive: formData.get('isActive') === 'on'
+    };
+
+    try {
+        const token = localStorage.getItem('token');
+        const url = offerId ? `${API_BASE_URL}/offer-videos/${offerId}` : `${API_BASE_URL}/offer-videos`;
+        const method = offerId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            showToast(`Offer video ${offerId ? 'updated' : 'created'} successfully!`, 'success');
+            closeModal();
+            await fetchOfferVideos();
+            renderOffers(document.getElementById('main-content'));
+        } else {
+            const err = await response.json();
+            showToast(err.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving offer:', error);
+        showToast('Failed to save offer', 'error');
+    }
+}
+
+async function toggleOfferStatus(id) {
+    const offer = state.offerVideos.find(o => o._id === id);
+    if (!offer) return;
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/offer-videos/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ isActive: !offer.isActive })
+        });
+
+        if (response.ok) {
+            showToast('Offer status updated!', 'success');
+            await fetchOfferVideos();
+            renderOffers(document.getElementById('main-content'));
+        }
+    } catch (error) {
+        console.error('Error toggling offer status:', error);
+    }
+}
+
+async function deleteOffer(id) {
+    if (!confirm('Are you sure you want to delete this offer video?')) return;
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/offer-videos/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            showToast('Offer video deleted', 'success');
+            await fetchOfferVideos();
+            renderOffers(document.getElementById('main-content'));
+        }
+    } catch (error) {
+        console.error('Error deleting offer:', error);
+    }
+}
+
+// ==========================================
+// 11. SETTINGS PAGE
 // ==========================================
 
 function renderSettings(container) {
@@ -1614,6 +2028,10 @@ function initCharts() {
 // ==========================================
 // 12. UTILITY FUNCTIONS
 // ==========================================
+
+function openModal() {
+    document.getElementById('generic-modal').classList.remove('hidden');
+}
 
 function closeModal() {
     document.getElementById('generic-modal').classList.add('hidden');

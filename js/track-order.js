@@ -52,7 +52,7 @@ function showSkeleton(show) {
 function populateTrackingUI(order) {
     // Header Info
     const firstItem = order.items[0] || {};
-    document.getElementById('orderImg').src = firstItem.image || 'https://via.placeholder.com/150';
+    document.getElementById('orderImg').src = firstItem.image || '';
     document.getElementById('orderProductName').textContent = firstItem.name || 'Genzi Product';
     document.getElementById('orderIdDisplay').textContent = `Order #${order.id}`;
     document.getElementById('orderTotal').textContent = `₹${order.total}`;

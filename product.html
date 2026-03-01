@@ -7,6 +7,11 @@
     <title>Product Details | GenziKart.in</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- SwiperJS for Testimonial Slider -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
     <link rel="stylesheet" href="styles.css">
     <style>
         .gallery-thumbnail.active {
@@ -30,6 +35,17 @@
         .tab-btn.active {
             color: #f59e0b;
             border-bottom-color: #f59e0b;
+        }
+
+        /* Swiper Customization */
+        .swiper-pagination-bullet-active {
+            background-color: #f59e0b !important;
+        }
+
+        .review-card {
+            height: auto;
+            display: flex;
+            flex-direction: column;
         }
     </style>
 </head>
@@ -70,7 +86,7 @@
                     </a>
 
                     <!-- WhatsApp -->
-                    <a href="https://wa.me/9536109375" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
+                    <a href="https://wa.me/9508103997" target="_blank" class="nav-icon" data-testid="whatsapp-icon">
                         <i class="fab fa-whatsapp text-xl text-green-500"></i>
                     </a>
 
@@ -175,8 +191,7 @@
                     <div class="flex-1 order-1 md:order-2">
                         <div
                             class="zoom-container bg-slate-100 rounded-xl aspect-square flex items-center justify-center relative border border-slate-100">
-                            <img id="mainImage" src="" alt="Product" class="max-w-full max-h-full object-contain"
-                                onerror="this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=No+Image'">
+                            <img id="mainImage" src="" alt="Product" class="max-w-full max-h-full object-contain">
                             <div class="absolute top-4 right-4 flex flex-col gap-2">
                                 <button
                                     class="w-10 h-10 bg-white/80 backdrop-blur shadow-sm rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 transition-colors">
@@ -301,11 +316,11 @@
                     <div id="tab-reviews" class="tab-content hidden">
                         <div class="flex flex-col lg:flex-row gap-10">
                             <!-- Reviews Summary Box -->
-                            <div class="lg:w-1/3">
+                            <div class="lg:w-1/4">
                                 <h3 class="text-xl font-bold text-slate-800 mb-6">Ratings & Reviews</h3>
                                 <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                                     <div class="flex items-center gap-4 mb-6">
-                                        <div class="text-4xl font-black text-slate-800" id="avgRatingBig">4.5</div>
+                                        <div class="text-4xl font-black text-slate-800" id="avgRatingBig">0.0</div>
                                         <div>
                                             <div class="flex text-amber-400 gap-1 mb-1" id="starRating">
                                                 <!-- Stars -->
@@ -322,9 +337,21 @@
                                 </div>
                             </div>
 
-                            <!-- Reviews List -->
-                            <div class="flex-1 space-y-6" id="reviewsList">
-                                <!-- Reviews injected here -->
+                            <!-- Testimonial Slider -->
+                            <div class="flex-1 overflow-hidden">
+                                <h3 class="text-xl font-bold text-slate-800 mb-6 px-4">Customer Testimonials</h3>
+                                <div class="swiper reviewSwiper px-4 pb-12">
+                                    <div class="swiper-wrapper" id="reviewsList">
+                                        <!-- Swiper slides injected here -->
+                                        <div class="swiper-slide text-center py-10 text-slate-400">
+                                            Loading reviews...
+                                        </div>
+                                    </div>
+                                    <!-- Pagination & Navigation -->
+                                    <div class="swiper-pagination"></div>
+                                    <div class="swiper-button-next !text-amber-500 !w-8 !h-8 after:!text-lg"></div>
+                                    <div class="swiper-button-prev !text-amber-500 !w-8 !h-8 after:!text-lg"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -354,6 +381,21 @@
                     <textarea id="reviewComment" rows="4"
                         class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all resize-none"
                         placeholder="What did you like or dislike?"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Area (Optional)</label>
+                        <input type="text" id="reviewArea"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            placeholder="e.g. Rohini">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">State (Optional)</label>
+                        <input type="text" id="reviewState"
+                            class="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                            placeholder="e.g. Delhi">
+                    </div>
                 </div>
                 <div class="flex gap-3">
                     <button type="button"

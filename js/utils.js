@@ -1,6 +1,6 @@
 // Utility Functions for GenziKart E-commerce
 
-const API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 /**
  * Formats an image URL for display.
@@ -14,12 +14,135 @@ function formatImageUrl(url) {
         const driveIdMatch = url.match(/\/file\/d\/([^\/]+)/) || url.match(/id=([^\&]+)/);
         if (driveIdMatch && driveIdMatch[1]) {
             const fileId = driveIdMatch[1];
-            // Using thumbnail link is more reliable for bypassing Google's "large file" warning
             return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
         }
     }
     return url;
 }
+
+/**
+ * Converts any YouTube or Google Drive video URL into an embeddable iframe src.
+ * Returns { type: 'embed'|'direct'|'none', url: string }
+ */
+function formatVideoUrl(url) {
+    if (!url || typeof url !== 'string') return { type: 'none', url: null };
+
+    // ---- YouTube ----
+    const ytMatch = url.match(
+        /(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+    );
+    if (ytMatch) {
+        const videoId = ytMatch[1];
+        return {
+            type: 'embed',
+            url: `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&rel=0&modestbranding=1&controls=1`
+        };
+    }
+
+    // ---- Google Drive ----
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+        let fileId = null;
+        const p1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (p1) fileId = p1[1];
+        if (!fileId) {
+            const p2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if (p2) fileId = p2[1];
+        }
+        if (!fileId) {
+            const p3 = url.match(/open\?id=([a-zA-Z0-9_-]+)/);
+            if (p3) fileId = p3[1];
+        }
+
+        if (fileId) {
+            return {
+                type: 'embed',
+                url: `https://drive.google.com/file/d/${fileId}/preview?autoplay=true&rm=minimal`
+            };
+        }
+    }
+
+    // ---- Direct video files (safe to use <video>) ----
+    if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) && !url.includes('google') && !url.includes('youtube')) {
+        return { type: 'direct', url: url };
+    }
+
+    // Unknown URL - treat as none to be safe
+    return { type: 'none', url: null };
+}
+
+/**
+ * Unified Video Player Renderer
+ * Returns HTML string for iframe, video tag, or placeholder
+ */
+function renderVideoPlayer(url, customClasses = "w-full h-full") {
+    const video = formatVideoUrl(url);
+
+    if (video.type === 'embed') {
+        return `<iframe 
+            src="${video.url}" 
+            class="${customClasses}" 
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            style="border:none; display:block;"></iframe>`;
+    }
+
+    if (video.type === 'direct') {
+        return `<video 
+            src="${video.url}" 
+            class="${customClasses} object-cover" 
+            autoplay muted loop playsinline 
+            style="display:block;"></video>`;
+    }
+
+    // Placeholder
+    return `<div class="${customClasses} flex flex-col items-center justify-center bg-gray-900 text-gray-500 gap-2">
+        <i class="fas fa-play-circle text-4xl"></i>
+        <span class="text-xs">No Video Preview</span>
+    </div>`;
+}
+
+/**
+ * MD5 implementation for Gravatar
+ */
+function md5(string) {
+    function rotateLeft(n, s) { return (n << s) | (n >>> (32 - s)); }
+    function k(n) { return Math.abs(Math.sin(n + 1)) * 4294967296 | 0; }
+    let a = 1732584193, b = -271733879, c = -1732584194, d = 271733878;
+    const s = unescape(encodeURIComponent(string));
+    const words = [];
+    for (let i = 0; i < (s.length + 8 >> 6) + 1 << 4; i++) words[i] = 0;
+    for (let i = 0; i < s.length; i++) words[i >> 2] |= s.charCodeAt(i) << ((i % 4) << 3);
+    words[s.length >> 2] |= 0x80 << ((s.length % 4) << 3);
+    words[words.length - 2] = s.length << 3;
+    for (let j = 0; j < words.length; j += 16) {
+        let [oa, ob, oc, od] = [a, b, c, d];
+        for (let i = 0; i < 64; i++) {
+            let f, g, s;
+            if (i < 16) { f = (b & c) | (~b & d); g = i; s = [7, 12, 17, 22][i % 4]; }
+            else if (i < 32) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; s = [5, 9, 14, 20][i % 4]; }
+            else if (i < 48) { f = b ^ c ^ d; g = (3 * i + 5) % 16; s = [4, 11, 16, 23][i % 4]; }
+            else { f = c ^ (b | ~d); g = (7 * i) % 16; s = [6, 10, 15, 21][i % 4]; }
+            const temp = d;
+            d = c;
+            c = b;
+            b = (b + rotateLeft((a + f + k(i) + words[j + g]) | 0, s)) | 0;
+            a = temp;
+        }
+        a = (a + oa) | 0; b = (b + ob) | 0; c = (c + oc) | 0; d = (d + od) | 0;
+    }
+    const hex = n => ("00000000" + (n >>> 0).toString(16)).slice(-8).match(/../g).reverse().join("");
+    return hex(a) + hex(b) + hex(c) + hex(d);
+}
+
+/**
+ * Get Gravatar URL from email
+ */
+function getGravatarUrl(email) {
+    if (!email || typeof email !== 'string') return 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=identicon';
+    const hash = md5(email.trim().toLowerCase());
+    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
+}
+
 
 /**
  * Enhanced fetch wrapper for API calls
@@ -46,7 +169,18 @@ async function apiFetch(endpoint, options = {}) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || 'API request failed');
+            // ✅ Handle Unauthorized (token expired or invalid)
+            if (response.status === 401) {
+                console.warn('⚠️ Unauthorized access detected. Clearing session.');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userEmail');
+
+                // Only redirect if we are not already on the login page to avoid loops
+                if (!window.location.pathname.includes('login.html')) {
+                    window.location.href = 'login.html?reason=expired';
+                }
+            }
+            throw new Error(data.message || data.error || 'API request failed');
         }
 
         return data;
@@ -368,8 +502,10 @@ function updateDropdownState() {
 
 /**
  * Centralized User UI update (Profile Dropdown)
+ * Fetches the latest user profile from the backend (once per session)
+ * so the saved profile image always appears on every page.
  */
-function updateUserUI() {
+async function updateUserUI() {
     const dropdownMenu = document.getElementById("dropdownMenu");
     const token = localStorage.getItem("token");
     if (!token || !dropdownMenu) return;
@@ -382,24 +518,38 @@ function updateUserUI() {
         const emailDisplay = document.getElementById('userEmailDisplay');
         if (emailDisplay) emailDisplay.textContent = email;
 
-        const savedAvatar = localStorage.getItem("avatar") || avatars[0];
+        // --- Try to get the latest user data (with saved image) ---
+        let imgSrc = '';
+        try {
+            let storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+            // If no image is cached, fetch from backend and cache it
+            if (!storedUser.image) {
+                const userEmail = email || localStorage.getItem('userEmail');
+                if (userEmail) {
+                    const users = await apiFetch('/users');
+                    const found = Array.isArray(users) ? users.find(u => u.email === userEmail) : null;
+                    if (found) {
+                        storedUser = found;
+                        localStorage.setItem('user', JSON.stringify(found));
+                    }
+                }
+            }
+
+            imgSrc = storedUser.image || '';
+        } catch (e) { }
+
+        // Fall back to Gravatar if no custom image
+        if (!imgSrc) imgSrc = getGravatarUrl(email);
+
+        // Update avatar in navbar dropdown
         const avatarDisplay = document.getElementById('avatarDisplay');
-        if (avatarDisplay) avatarDisplay.textContent = savedAvatar;
-
-        // Setup avatar selection logic
-        const avatarGrid = document.querySelector('.avatar-grid');
-        if (avatarGrid) {
-            avatarGrid.innerHTML = avatars.map(a =>
-                `<button class="avatar-option p-2 hover:bg-slate-100 rounded-lg transition-all transform hover:scale-110">${a}</button>`
-            ).join("");
-
-            document.querySelectorAll(".avatar-option").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    localStorage.setItem("avatar", btn.innerText);
-                    if (avatarDisplay) avatarDisplay.textContent = btn.innerText;
-                });
-            });
+        if (avatarDisplay) {
+            avatarDisplay.innerHTML = `<img src="${imgSrc}" class="w-full h-full object-cover rounded-full shadow-sm" alt="User Profile" onerror="this.src='${getGravatarUrl(email)}'">`;
+            avatarDisplay.classList.remove('text-3xl');
+            avatarDisplay.style.overflow = 'hidden';
         }
+
     } catch (e) {
         console.error("Invalid token or UI update error:", e);
     }

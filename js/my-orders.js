@@ -161,6 +161,18 @@ function createOrderCard(order) {
         actionButtons += `<button onclick="reorder('${order._id}')" class="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-all text-sm">Reorder</button>`;
     }
 
+    // Invoice Button (Always show if delivered)
+    if (order.status === 'delivered') {
+        actionButtons += `<button onclick="downloadInvoice('${order._id}')" class="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm flex items-center gap-2"><i class="fas fa-file-invoice"></i> Invoice</button>`;
+    }
+
+    // Digital Product Download
+    const hasDigital = order.items.some(item => item.isDigital);
+    if (hasDigital && order.paymentStatus === 'Paid') {
+        actionButtons += `<button onclick="downloadDigital('${order._id}')" class="bg-green-100 text-green-600 px-6 py-2.5 rounded-xl font-bold hover:bg-green-200 transition-all text-sm flex items-center gap-2"><i class="fas fa-download"></i> Download Content</button>`;
+    }
+
+
     // Use the first item's image if available, otherwise use a placeholder
     const firstItem = order.items[0] || { name: 'Genzi Product', price: order.total };
     const itemImg = firstItem.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(firstItem.name)}&background=f8fafc&color=64748b&bold=true&length=2`;
@@ -174,7 +186,7 @@ function createOrderCard(order) {
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition-all group animate-fade-in">
             <div class="flex flex-col md:flex-row gap-6">
                 <div class="w-full md:w-32 h-32 rounded-2xl bg-slate-50 overflow-hidden flex-shrink-0">
-                    <img src="${itemImg}" alt="${firstItem.name}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300?text=GenziKart'">
+                    <img src="${itemImg}" alt="${firstItem.name}" class="w-full h-full object-cover">
                 </div>
                 
                 <div class="flex-1">
@@ -251,3 +263,18 @@ function rateProduct(id) {
 function refundStatus(id) {
     window.location.href = `support.html?action=refund&orderId=${id}`;
 }
+
+function downloadInvoice(id) {
+    showToast('Generating invoice...', 'info');
+    // Using utils.js apiFetch or just open link
+    window.open(`${API_BASE_URL}/orders/${id}/invoice`, '_blank');
+}
+
+function downloadDigital(id) {
+    showToast('Preparing download...', 'success');
+    // Mock download
+    setTimeout(() => {
+        window.location.href = `${API_BASE_URL}/orders/${id}/download`;
+    }, 1000);
+}
+

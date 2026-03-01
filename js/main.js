@@ -111,7 +111,7 @@ function displayBestSellers() {
         .slice(0, 4);
 
     grid.innerHTML = bestsellers
-        .map((product, index) => createProductCard(product, index))
+        .map((product, index) => renderProductCard(product, index))
         .join('');
 }
 
@@ -125,7 +125,7 @@ function displayAllProducts() {
     // Show only 4 products on the home page as requested
     grid.innerHTML = filteredProducts
         .slice(0, 4)
-        .map((product, index) => createProductCard(product, index))
+        .map((product, index) => renderProductCard(product, index))
         .join('');
 }
 
@@ -133,7 +133,7 @@ function displayAllProducts() {
  * Create Product Card HTML
  * (Logic unchanged)
  */
-function createProductCard(product, index) {
+function renderProductCard(product, index) {
     const productId = product._id;
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
     const isWishlisted = wishlist.includes(productId);
@@ -156,8 +156,7 @@ function createProductCard(product, index) {
                 <img src="${formatImageUrl(product.image)}"
                      alt="${product.name}"
                      class="product-image group-hover:scale-110 transition-transform duration-500"
-                     loading="lazy"
-                     onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                     loading="lazy">
 
                 <button onclick="event.stopPropagation(); toggleWishlist('${productId}')"
                         class="wishlist-btn ${isWishlisted ? 'active' : ''}">
@@ -220,31 +219,10 @@ function addToCartById(productId) {
    RECENTLY VIEWED
    ========================================================= */
 
-function saveToRecentlyViewed(productId) {
-
-    let recentlyViewed = JSON.parse(
-        localStorage.getItem('recentlyViewed') || '[]'
-    );
-
-    recentlyViewed = recentlyViewed.filter(id => id !== productId);
-    recentlyViewed.unshift(productId);
-
-    recentlyViewed = recentlyViewed.slice(0, RECENTLY_VIEWED_LIMIT);
-
-    localStorage.setItem(
-        'recentlyViewed',
-        JSON.stringify(recentlyViewed)
-    );
-
-    loadRecentlyViewed();
-}
+// Redundant saveToRecentlyViewed removed (using utils.js version)
 
 function loadRecentlyViewed() {
-
-    const recentlyViewed = JSON.parse(
-        localStorage.getItem('recentlyViewed') || '[]'
-    );
-
+    const recentlyViewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
     const section = document.getElementById('recentlyViewedSection');
     const grid = document.getElementById('recentlyViewedGrid');
 
@@ -257,34 +235,51 @@ function loadRecentlyViewed() {
 
     section.classList.remove('hidden');
 
+    // Get the product objects from the stored IDs
     const products = recentlyViewed
-        .map(id => allProducts.find(p => p._id === id))
-        .filter(Boolean);
+        .map(id => allProducts.find(p => (p._id || p.id) === id))
+        .filter(Boolean)
+        .slice(0, 4);
 
-    grid.innerHTML = products.map(product => `
-        <div class="min-w-[250px] product-card">
-            <div class="relative">
-                <img src="${product.image}"
-                     alt="${product.name}"
-                     class="product-image"
-                     loading="lazy">
+    if (products.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    // Render compact horizontal cards
+    grid.innerHTML = products.map((product) => {
+        const productId = product._id || product.id;
+        const price = product.price || 0;
+        const originalPrice = product.originalPrice || Math.round(price * 1.5);
+        const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+        const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        const isWishlisted = wishlist.includes(productId);
+
+        return `
+        <div class="rv-card flex-shrink-0" onclick="window.location.href='product.html?id=${productId}'" style="cursor:pointer">
+            <div class="rv-card-img-wrap">
+                <img src="${formatImageUrl(product.image)}" alt="${product.name}" class="rv-card-img" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/180x160?text=No+Image'">
+                <button class="rv-wish-btn ${isWishlisted ? 'active' : ''}"
+                        onclick="event.stopPropagation(); toggleWishlist('${productId}'); this.classList.toggle('active')">
+                    <i class="fas fa-heart"></i>
+                </button>
+                ${discount > 0 ? `<span class="rv-badge">${discount}% off</span>` : ''}
             </div>
-
-            <div class="p-4">
-                <h3 class="product-title">${product.name}</h3>
-
-                <div class="flex items-center justify-between mt-3">
-                    <span class="product-price">₹${product.price}</span>
-
-                    <button onclick="addToCart('${product._id}')"
-                            class="add-to-cart-btn">
-                        <i class="fas fa-shopping-cart mr-1"></i> Add
-                    </button>
+            <div class="rv-card-body">
+                <p class="rv-name">${product.name}</p>
+                <div class="rv-pricing">
+                    <span class="rv-price">₹${price.toLocaleString('en-IN')}</span>
+                    <span class="rv-orig">₹${originalPrice.toLocaleString('en-IN')}</span>
                 </div>
+                <button class="rv-cart-btn" onclick="event.stopPropagation(); addToCartById('${productId}')">
+                    <i class="fas fa-shopping-cart"></i> Add
+                </button>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
+
 
 /* =========================================================
    FILTERS
@@ -356,34 +351,106 @@ function setupSearch() {
 }
 
 /* =========================================================
-   COUNTDOWN
+   OFFER SHOWCASE & COUNTDOWN
    ========================================================= */
 
-function initCountdown() {
+let showcaseInterval;
 
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 3);
+async function initOfferShowcase() {
+    const showcase = document.getElementById('offerShowcase');
+    const grid = document.getElementById('videoShowcaseGrid');
+    if (!showcase || !grid) return;
 
-    function updateCountdown() {
+    try {
+        const offers = await apiFetch('/offer-videos/active');
+        if (!offers || offers.length === 0) {
+            showcase.classList.add('hidden');
+            return;
+        }
 
+        showcase.classList.remove('hidden');
+        renderShowcaseVideos(offers);
+
+        // Start countdown using the first offer's expiry (assuming they match, or just use the earliest)
+        const earliestExpiry = new Date(Math.min(...offers.map(o => new Date(o.expiryDate))));
+        startShowcaseCountdown(earliestExpiry);
+
+    } catch (err) {
+        console.warn('Failed to load offer showcase', err);
+        showcase.classList.add('hidden');
+    }
+}
+
+function renderShowcaseVideos(offers) {
+    const grid = document.getElementById('videoShowcaseGrid');
+    if (!grid) return;
+
+    grid.innerHTML = offers.map(offer => {
+        const product = offer.productId || {};
+        const productUrl = `product.html?id=${product._id}`;
+        const rating = product.rating || 5;
+
+        // Use the centralized video player renderer
+        const mediaHtml = typeof renderVideoPlayer === 'function'
+            ? renderVideoPlayer(offer.videoUrl, "showcase-video w-full h-full")
+            : `<div class="w-full h-full flex items-center justify-center bg-gray-900"><i class="fas fa-play text-4xl text-gray-700"></i></div>`;
+
+        return `
+            <div class="video-card">
+                <div class="video-container">
+                    ${mediaHtml}
+                    <div class="video-overlay-content">
+                        <div class="video-info">
+                            <h3 class="video-title">${offer.title}</h3>
+                            <p class="video-offer">${offer.offerText}</p>
+                            <div class="video-rating">
+                                <div class="rating-stars">
+                                    ${Array(5).fill(0).map((_, i) => `<i class="${i < rating ? 'fas' : 'far'} fa-star"></i>`).join('')}
+                                </div>
+                                <span>${rating} (${(Math.floor(Math.random() * 2000) + 500).toLocaleString()} Reviews)</span>
+                            </div>
+                        </div>
+                        <div class="video-btns">
+                            <a href="${productUrl}" class="btn-showcase-buy">Buy Now</a>
+                            <a href="${productUrl}" class="btn-showcase-view">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+
+function startShowcaseCountdown(endDate) {
+    function update() {
         const now = new Date();
         const diff = endDate - now;
 
-        if (diff <= 0) return;
+        if (diff <= 0) {
+            document.getElementById('offerShowcase')?.classList.add('hidden');
+            clearInterval(showcaseInterval);
+            return;
+        }
 
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
 
-        document.getElementById('days').textContent = String(days).padStart(2, '0');
-        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
-        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
-        document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+        const daysEl = document.getElementById('days');
+        const hoursEl = document.getElementById('hours');
+        const minutesEl = document.getElementById('minutes');
+        const secondsEl = document.getElementById('seconds');
+
+        if (daysEl) daysEl.textContent = String(d).padStart(2, '0');
+        if (hoursEl) hoursEl.textContent = String(h).padStart(2, '0');
+        if (minutesEl) minutesEl.textContent = String(m).padStart(2, '0');
+        if (secondsEl) secondsEl.textContent = String(s).padStart(2, '0');
     }
 
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
+    update();
+    showcaseInterval = setInterval(update, 1000);
 }
 
 /* =========================================================
@@ -393,7 +460,91 @@ function initCountdown() {
 document.addEventListener('DOMContentLoaded', function () {
     initHeroSlider();
     setupCategoryFilter();
-    initCountdown();
+    initOfferShowcase();
     setupSearch();
     loadProducts();
+    initFeaturedReviews();
 });
+
+/* =========================================================
+   FEATURED REVIEWS CAROUSEL
+   ========================================================= */
+
+let reviewSlideIndex = 0;
+let reviewInterval;
+
+/**
+ * Main initializer for featured reviews
+ */
+async function initFeaturedReviews() {
+    const reviews = await fetchFeaturedReviews();
+    // renderFeaturedReviews now handles fallbacks internally
+    renderFeaturedReviews(reviews);
+
+    // Start carousel if we have enough items (fallback or real)
+    const container = document.getElementById('featuredReviewsContainer');
+    const items = container ? container.querySelectorAll('.review-card-vertical').length : 0;
+    if (items > 1) {
+        startReviewCarousel(items);
+    }
+}
+
+/**
+ * Fetch real customer reviews from API for homepage carousel
+ */
+async function fetchFeaturedReviews() {
+    try {
+        const reviews = await apiFetch('/reviews/all?limit=8');
+        return reviews || [];
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        return [];
+    }
+}
+
+/**
+ * Render reviews into the carousel (Stacked Card UI)
+ */
+function renderFeaturedReviews(reviews) {
+    const container = document.getElementById('featuredReviewsContainer');
+    if (!container) return;
+
+    // Always show real reviews; no dummy fallback needed
+    if (!reviews || reviews.length === 0) return;
+
+    container.innerHTML = reviews.map((review) => {
+        const avatarSrc = review.avatar
+            ? review.avatar
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(review.name || 'User')}&background=fb923c&color=fff`;
+
+        return `
+        <div class="showcase-review-slide">
+            <img src="${avatarSrc}" class="review-avatar" alt="${review.name || 'Reviewer'}"
+                 onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(review.name || 'U')}&background=fb923c&color=fff'">
+            <div class="review-content">
+                <div class="review-header">
+                    <span class="review-author text-white">${review.name || 'Customer'}</span>
+                    <span class="review-verified"><i class="fas fa-check-circle"></i> Verified Buyer</span>
+                </div>
+                <div class="rating-stars my-1">
+                    ${Array(5).fill(0).map((_, i) => `<i class="${i < review.rating ? 'fas' : 'far'} fa-star"></i>`).join('')}
+                </div>
+                <p class="review-text-quote">"${review.comment}"</p>
+            </div>
+        </div>`;
+    }).join('');
+
+    if (reviews.length > 1) startReviewCarousel(reviews.length);
+}
+
+function startReviewCarousel(count) {
+    if (reviewInterval) clearInterval(reviewInterval);
+
+    reviewInterval = setInterval(() => {
+        reviewSlideIndex = (reviewSlideIndex + 1) % count;
+        const container = document.getElementById('featuredReviewsContainer');
+        if (container) {
+            container.style.transform = `translateY(-${reviewSlideIndex * 140}px)`;
+        }
+    }, 5000);
+}

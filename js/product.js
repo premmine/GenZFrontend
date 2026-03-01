@@ -85,26 +85,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const comment = document.getElementById('reviewComment').value.trim();
+        const area = document.getElementById('reviewArea')?.value.trim() || '';
+        const state = document.getElementById('reviewState')?.value.trim() || '';
+
         if (!comment) {
             showToast('Please add a comment', 'error');
             return;
         }
 
         try {
-            await apiFetch('/reviews', {
+            await apiFetch(`/reviews/${productId}`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    product: productId,
                     rating: currentRating,
                     comment: comment,
-                    user: localStorage.getItem('userEmail') || 'Anonymous'
+                    area: area,
+                    state: state
                 })
             });
             showToast('Review submitted successfully!');
             closeReviewModal();
             loadProductReviews(productId);
         } catch (error) {
-            showToast('Failed to post review', 'error');
+            showToast(error.message || 'Failed to post review', 'error');
         }
     });
 });
@@ -143,7 +146,7 @@ function renderProductDetails(product) {
     const mainImg = document.getElementById('mainImage');
 
     // Fallback for main image if it fails
-    mainImg.src = formatImageUrl(product.image) || 'https://placehold.co/400x400/f1f5f9/94a3b8?text=No+Image';
+    mainImg.src = formatImageUrl(product.image);
 
     thumbContainer.innerHTML = images.map((img, i) => `
         <div class="gallery-thumbnail w-16 h-16 md:w-20 md:h-20 bg-white border border-slate-200 rounded-lg p-1 cursor-pointer transition-all flex-shrink-0 flex items-center justify-center ${i === 0 ? 'active' : ''}" 
@@ -211,54 +214,95 @@ function renderProductDetails(product) {
     }
 }
 
+let swiper;
+
 async function loadProductReviews(productId) {
     try {
-        const reviews = await apiFetch(`/reviews?productId=${productId}`);
+        const reviews = await apiFetch(`/reviews/${productId}`);
         const list = document.getElementById('reviewsList');
 
         if (reviews.length === 0) {
             list.innerHTML = `
-                <div class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <p class="text-slate-500">No reviews yet. Be the first to share your thoughts!</p>
+                <div class="swiper-slide h-auto">
+                    <div class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <p class="text-slate-500">No reviews yet. Be the first to share your thoughts!</p>
+                    </div>
                 </div>
             `;
             return;
         }
 
         const avg = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
-        document.getElementById('avgRating').textContent = avg.toFixed(1);
         document.getElementById('avgRatingBig').textContent = avg.toFixed(1);
-        document.getElementById('reviewCount').textContent = reviews.length;
         document.getElementById('reviewCountBig').textContent = reviews.length;
 
         // Render Stars
         let starsHtml = '';
+        const roundedAvg = Math.round(avg);
         for (let i = 1; i <= 5; i++) {
-            starsHtml += `<i class="fas fa-star ${i <= Math.round(avg) ? '' : 'text-slate-200'}"></i>`;
+            starsHtml += `<i class="fas fa-star ${i <= roundedAvg ? 'text-amber-400' : 'text-slate-200'}"></i>`;
         }
         document.getElementById('starRating').innerHTML = starsHtml;
 
         list.innerHTML = reviews.map(r => `
-            <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100 relative group">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="flex items-center bg-green-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold gap-1">
-                        ${r.rating} <i class="fas fa-star text-[8px]"></i>
-                    </div>
-                    <span class="text-sm font-bold text-slate-800">${r.rating >= 4 ? 'Excellent' : r.rating >= 3 ? 'Good' : 'Average'}</span>
-                </div>
-                <p class="text-slate-600 text-sm mb-4 leading-relaxed">${r.comment}</p>
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500 uppercase">
-                            ${r.user.charAt(0)}
+            <div class="swiper-slide h-auto">
+                <div class="p-8 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col h-full items-center text-center group">
+                    <div class="relative mb-6">
+                        <div class="w-20 h-20 rounded-full overflow-hidden border-4 border-amber-50 group-hover:border-amber-100 transition-all p-1 bg-white">
+                            <img src="${r.avatar}" alt="${r.name}" class="w-full h-full object-cover rounded-full">
                         </div>
-                        <span class="text-xs font-bold text-slate-500">${r.user}</span>
-                        <i class="fas fa-check-circle text-[10px] text-slate-400" title="Certified Buyer"></i>
-                        <span class="text-[10px] text-slate-400 font-medium">Certified Buyer, ${r.date || 'Recently'}</span>
+                        <div class="absolute -bottom-1 -right-1 bg-green-500 text-white w-6 h-6 rounded-full flex items-center justify-center border-2 border-white text-[10px]">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                    
+                    <h4 class="font-bold text-slate-800 mb-1">${r.name}</h4>
+                    <div class="flex text-amber-400 text-xs mb-3">
+                        ${Array(5).fill(0).map((_, i) => `<i class="${i < r.rating ? 'fas' : 'far'} fa-star"></i>`).join('')}
+                    </div>
+                    
+                    <p class="text-slate-600 text-sm leading-relaxed italic line-clamp-4 flex-1">
+                        "${r.comment}"
+                    </p>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-50 w-full flex flex-col items-center justify-center gap-1 text-slate-400">
+                        <span class="text-[10px] font-bold uppercase tracking-widest">${r.date || 'Recent'}</span>
+                        ${r.area || r.state ? `<span class="text-[9px] font-semibold text-slate-400 capitalize">${[r.area, r.state].filter(Boolean).join(', ')}</span>` : ''}
                     </div>
                 </div>
             </div>
         `).join('');
+
+        // Initialize/Update Swiper
+        if (swiper) swiper.destroy();
+        swiper = new Swiper(".reviewSwiper", {
+            slidesPerView: 1,
+            spaceBetween: 20,
+            loop: reviews.length > 3,
+            autoplay: {
+                delay: 4000,
+                disableOnInteraction: false,
+            },
+            pagination: {
+                el: ".swiper-pagination",
+                clickable: true,
+            },
+            navigation: {
+                nextEl: ".swiper-button-next",
+                prevEl: ".swiper-button-prev",
+            },
+            breakpoints: {
+                640: {
+                    slidesPerView: 1,
+                },
+                768: {
+                    slidesPerView: 2,
+                },
+                1024: {
+                    slidesPerView: 3,
+                },
+            },
+        });
 
     } catch (error) {
         console.error('Error loading reviews:', error);

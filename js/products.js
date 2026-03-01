@@ -109,8 +109,7 @@ function createProductCard(product, index) {
                 <img src="${formatImageUrl(product.image)}" 
                      alt="${product.name}" 
                      class="product-image group-hover:scale-110 transition-transform duration-500" 
-                     loading="lazy"
-                     onerror="this.src='https://via.placeholder.com/300?text=No+Image'">
+                     loading="lazy">
                 
                 <button onclick="event.stopPropagation(); toggleWishlist('${productId}')" 
                         class="wishlist-btn ${isWishlisted ? 'active' : ''}">

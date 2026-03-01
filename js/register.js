@@ -101,7 +101,7 @@ sendBtn.addEventListener("click", async (e) => {
 
     sendBtn.innerText = "Sending...";
 
-    const res = await fetch("https://gen-z-backend.vercel.app/api/auth/send-otp", {
+    const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -127,7 +127,7 @@ verifyBtn.addEventListener("click", async (e) => {
 
     verifyBtn.innerText = "Verifying...";
 
-    const res = await fetch("https://gen-z-backend.vercel.app/api/auth/verify-otp", {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -145,6 +145,7 @@ verifyBtn.addEventListener("click", async (e) => {
     if (data.token) {
 
         localStorage.setItem("token", data.token);
+        localStorage.setItem("userEmail", emailInput.value.trim().toLowerCase());
 
         verifyBtn.classList.add("btn-active");
         verifyBtn.disabled = false;

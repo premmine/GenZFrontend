@@ -29,7 +29,7 @@ document.getElementById("emailForm")?.addEventListener("submit", async function 
 
     try {
 
-        const res = await fetch("https://gen-z-backend.vercel.app/api/auth/send-otp", {
+        const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: userEmail })
@@ -127,7 +127,7 @@ document.getElementById("otpForm")?.addEventListener("submit", async function (e
 
     try {
 
-        const res = await fetch("https://gen-z-backend.vercel.app/api/auth/verify-otp", {
+        const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -152,7 +152,7 @@ document.getElementById("otpForm")?.addEventListener("submit", async function (e
 
             if (!localCart.length) return;
 
-            await fetch("https://gen-z-backend.vercel.app/api/cart/merge", {
+            await fetch(`${API_BASE_URL}/cart/merge`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -198,7 +198,7 @@ document.getElementById("resendBtn")?.addEventListener("click", async function (
 
     try {
 
-        const res = await fetch("https://gen-z-backend.vercel.app/api/auth/send-otp", {
+        const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: userEmail })

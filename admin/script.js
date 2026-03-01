@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 const state = {
     currentPage: 'dashboard',

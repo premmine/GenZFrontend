@@ -1,4 +1,9 @@
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 const state = {
     currentPage: 'dashboard',
@@ -8,6 +13,9 @@ const state = {
     reviews: [],
     discounts: [],
     offerVideos: [],
+    notifications: [],
+    pageNotifications: [], // Store notifications for the main table
+    unreadCount: 0,
     stats: {
         sales: 0,
         salesChange: 0,
@@ -73,7 +81,111 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize charts
     initCharts();
+
+    // Initialize Notifications
+    initNotifications();
 });
+
+let socket;
+let notificationPollingInterval;
+const ORDER_NOTIFICATION_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
+
+function initNotifications() {
+    const bell = document.getElementById('notification-bell');
+    const dropdown = document.getElementById('notification-dropdown');
+
+    if (bell && dropdown) {
+        bell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleNotificationDropdown();
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            dropdown.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+        });
+
+        dropdown.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Initial Fetch
+    fetchUnreadCount();
+    fetchNotifications();
+
+    // Initialize Socket with Fallback
+    initAdminSocket();
+}
+
+function initAdminSocket() {
+    // Load Socket.IO client script dynamically if not present
+    if (typeof io === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
+        script.onload = () => setupSocketConnection();
+        script.onerror = () => startNotificationPolling();
+        document.head.appendChild(script);
+    } else {
+        setupSocketConnection();
+    }
+}
+
+function setupSocketConnection() {
+    try {
+        const backendUrl = API_BASE_URL.replace('/api', '');
+        socket = io(backendUrl, {
+            transports: ['websocket', 'polling'], // Allow polling fallback
+            reconnectionAttempts: 3
+        });
+
+        socket.on('connect', () => {
+            console.log('📡 Connected to Real-time Notification Server');
+            if (notificationPollingInterval) {
+                clearInterval(notificationPollingInterval);
+                notificationPollingInterval = null;
+            }
+        });
+
+        socket.on('connect_error', (error) => {
+            console.warn('⚠️ Socket.IO connection failed, using polling fallback:', error.message);
+            startNotificationPolling();
+        });
+
+        socket.on('newNotification', (notification) => {
+            console.log('🔔 New Notification Received:', notification);
+            state.notifications.unshift(notification);
+            state.unreadCount++;
+            updateNotificationUI();
+
+            // Sound for new orders
+            if (notification.type === 'order') {
+                const audio = new Audio(ORDER_NOTIFICATION_SOUND);
+                audio.play().catch(e => console.warn('Audio playback blocked by browser'));
+            }
+
+            showToast(`New ${notification.type}: ${notification.title}`);
+        });
+    } catch (err) {
+        console.error('Socket setup error:', err);
+        startNotificationPolling();
+    }
+}
+
+function startNotificationPolling() {
+    if (notificationPollingInterval) return;
+    console.log('🔄 Starting notification polling fallback (60s)...');
+
+    // Initial fetch for fallback
+    fetchUnreadCount();
+
+    notificationPollingInterval = setInterval(() => {
+        console.log('📥 Polling for notifications...');
+        fetchUnreadCount();
+        // If the notifications dashboard is open, refresh it too
+        if (state.currentPage === 'notifications' && typeof loadNotificationsTable === 'function') {
+            loadNotificationsTable(currentNotificationPage);
+        }
+    }, 60000); // Poll every 60 seconds to avoid overloading server
+}
 
 /**
  * Dynamic Admin Profile Update
@@ -87,6 +199,375 @@ function updateAdminProfile() {
 
     if (nameEl) nameEl.textContent = name;
     if (roleEl) roleEl.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+/**
+ * Notification API Interactions & UI
+ */
+async function fetchNotifications() {
+    try {
+        const res = await apiFetch('/notifications?limit=10');
+        state.notifications = res.notifications;
+        updateNotificationUI();
+    } catch (err) {
+        console.error('Error fetching notifications:', err);
+    }
+}
+
+async function fetchUnreadCount() {
+    try {
+        const res = await apiFetch('/notifications/unread-count');
+        state.unreadCount = res.count;
+        updateNotificationBadge();
+    } catch (err) {
+        console.error('Error fetching unread count:', err);
+    }
+}
+
+function updateNotificationBadge() {
+    const badge = document.getElementById('notification-badge');
+    const countText = document.getElementById('unread-count-text');
+
+    if (badge) {
+        if (state.unreadCount > 0) {
+            badge.textContent = state.unreadCount > 9 ? '9+' : state.unreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    if (countText) {
+        countText.textContent = `You have ${state.unreadCount} unread messages`;
+    }
+}
+
+function toggleNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    dropdown.classList.toggle('opacity-0');
+    dropdown.classList.toggle('scale-95');
+    dropdown.classList.toggle('pointer-events-none');
+
+    // If opening, refresh data
+    if (!dropdown.classList.contains('opacity-0')) {
+        fetchNotifications();
+    }
+}
+
+function updateNotificationUI() {
+    updateNotificationBadge();
+    const list = document.getElementById('notification-list');
+    if (!list) return;
+
+    if (state.notifications.length === 0) {
+        list.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+                <i data-lucide="bell-off" class="w-8 h-8 mx-auto mb-2 opacity-20"></i>
+                <p class="text-sm">No notifications yet</p>
+            </div>
+        `;
+        lucide.createIcons();
+        return;
+    }
+
+    list.innerHTML = state.notifications.map(n => {
+        const icon = getNotificationIcon(n.type);
+        const colorClass = getNotificationColor(n.type);
+        const timeAgo = formatTimeAgo(n.createdAt);
+
+        return `
+            <div class="p-4 hover:bg-gray-50 flex gap-4 cursor-pointer transition-colors ${n.isRead ? '' : 'bg-indigo-50/30'}" 
+                 onclick="markAsRead('${n._id}', '${n.type}', '${n.referenceId}')">
+                <div class="w-10 h-10 rounded-full ${colorClass} flex items-center justify-center shrink-0">
+                    <i data-lucide="${icon}" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-0.5">
+                        <p class="text-sm font-semibold text-gray-800 truncate">${n.title || 'System Notification'}</p>
+                        <span class="text-[10px] text-gray-400 whitespace-nowrap">${timeAgo}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 line-clamp-1 mb-1">${n.message || 'No details available.'}</p>
+                    ${n.email || n.phone ? `
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            ${n.email ? `<span class="text-[9px] bg-gray-100 text-gray-500 px-1 py-0.5 rounded flex items-center gap-1 leading-none"><i data-lucide="mail" class="w-2.5 h-2.5"></i> ${n.email}</span>` : ''}
+                            ${n.phone ? `<span class="text-[9px] bg-gray-100 text-gray-500 px-1 py-0.5 rounded flex items-center gap-1 leading-none"><i data-lucide="phone" class="w-2.5 h-2.5"></i> ${n.phone}</span>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    lucide.createIcons();
+}
+
+function getNotificationIcon(type) {
+    switch (type) {
+        case 'order': return 'shopping-bag';
+        case 'review': return 'star';
+        case 'ticket': return 'life-buoy';
+        case 'contact': return 'mail';
+        default: return 'bell';
+    }
+}
+
+function getNotificationColor(type) {
+    switch (type) {
+        case 'order': return 'bg-emerald-500';
+        case 'review': return 'bg-amber-500';
+        case 'ticket': return 'bg-blue-500';
+        case 'contact': return 'bg-purple-500';
+        default: return 'bg-gray-500';
+    }
+}
+
+function formatTimeAgo(date) {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+}
+
+async function openNotificationModal(n) {
+    const modalContent = document.getElementById('modal-content');
+    if (!modalContent) return;
+
+    // Show immediately with loading state
+    modalContent.innerHTML = `
+        <div class="p-12 text-center text-gray-400">
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+            <p class="text-sm font-medium">Loading details...</p>
+        </div>
+    `;
+    document.getElementById('generic-modal').classList.remove('hidden');
+
+    // STEP 1: Immediately look up user from already-loaded customers state
+    let emailToSearch = n.email;
+    let userProfile = emailToSearch
+        ? (state.customers || []).find(c => c.email === emailToSearch)
+        : null;
+
+    // STEP 2: Fetch original source document for full details
+    try {
+        if (n.type === 'contact' && n.referenceId) {
+            const contact = await apiFetch(`/contact/${n.referenceId}`);
+            if (contact) {
+                n.name = n.name || contact.name;
+                n.email = n.email || contact.email;
+                n.phone = n.phone || contact.phone;
+                n._contactMessage = contact.message;
+                n._contactSubject = contact.subject;
+                if (!emailToSearch) emailToSearch = contact.email;
+            }
+        } else if (n.type === 'ticket' && n.referenceId) {
+            const ticket = await apiFetch(`/tickets/${n.referenceId}`);
+            if (ticket) {
+                // Store full ticket details for display
+                n._ticketId = ticket.ticketId;
+                n._ticketSubject = ticket.subject;
+                n._ticketCategory = ticket.category;
+                n._ticketPriority = ticket.priority;
+                n._ticketMessage = ticket.message;  // ← the actual user-typed message
+                n._ticketStatus = ticket.status;
+                n._ticketReply = ticket.adminReply;
+            }
+        }
+    } catch (err) {
+        console.warn('Could not fetch reference document:', err);
+    }
+
+    // STEP 3: If userProfile not yet found, try fetching from /api/users
+    if (!userProfile && emailToSearch) {
+        userProfile = (state.customers || []).find(c => c.email === emailToSearch);
+        if (!userProfile) {
+            try {
+                const allUsers = await apiFetch('/users');
+                const list = Array.isArray(allUsers) ? allUsers : (allUsers && allUsers.users) || [];
+                userProfile = list.find(u => u.email === emailToSearch);
+            } catch (err) {
+                console.warn('Could not fetch user profile:', err);
+            }
+        }
+    }
+
+    // STEP 4: Resolve best display values
+    const displayName = (userProfile?.name) || n.name || (() => {
+        if (n.type === 'contact' && n.message) {
+            const m = n.message.match(/New message from ([^:]+):/i);
+            return m ? m[1].trim() : null;
+        }
+        return null;
+    })();
+    const displayEmail = (userProfile?.email) || n.email || null;
+    const displayPhone = (userProfile?.phone || userProfile?.whatsapp) || n.phone || null;
+
+    // Priority badge color helper
+    const priorityColor = {
+        high: 'bg-red-100 text-red-700',
+        medium: 'bg-yellow-100 text-yellow-700',
+        low: 'bg-green-100 text-green-700'
+    };
+
+    // STEP 5: Render
+    modalContent.innerHTML = `
+        <div class="flex items-center justify-between mb-5 pb-4 border-b border-gray-100">
+            <div>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getNotificationBadgeClass(n.type)} mb-1">
+                    ${n.type || 'System'}
+                </span>
+                <h2 class="text-xl font-bold text-gray-900">${n.title || 'Notification Details'}</h2>
+                <p class="text-xs text-gray-400 mt-1">${new Date(n.createdAt).toLocaleString()}</p>
+            </div>
+            <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+
+            <!-- Customer Profile Card -->
+            ${(displayName || displayEmail || displayPhone) ? `
+            <div class="bg-gradient-to-r from-primary/5 to-indigo-50 border border-primary/10 rounded-2xl p-5">
+                <p class="text-[10px] text-primary font-bold uppercase tracking-wider mb-3 flex items-center gap-1">
+                    <i data-lucide="user-circle" class="w-3 h-3"></i> Customer Profile
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    ${displayName ? `<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Name</p>
+                        <p class="text-sm font-bold text-gray-900 truncate">${displayName}</p>
+                    </div>` : ''}
+                    ${displayEmail ? `<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Email</p>
+                        <p class="text-sm font-bold text-primary break-all">${displayEmail}</p>
+                    </div>` : ''}
+                    ${displayPhone ? `<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Phone</p>
+                        <p class="text-sm font-bold text-gray-900">${displayPhone}</p>
+                    </div>` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Ticket Detail Cards (only for ticket type) -->
+            ${n.type === 'ticket' && n._ticketId ? `
+            <div class="border border-gray-100 rounded-2xl p-5 bg-white">
+                <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-3 flex items-center gap-1">
+                    <i data-lucide="ticket" class="w-3 h-3"></i> Ticket Info
+                </p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Ticket ID</p>
+                        <p class="text-xs font-bold text-gray-800">${n._ticketId}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Category</p>
+                        <p class="text-xs font-bold text-gray-800">${n._ticketCategory || '—'}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Priority</p>
+                        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold ${priorityColor[n._ticketPriority] || 'bg-gray-100 text-gray-600'}">
+                            ${n._ticketPriority || 'Medium'}
+                        </span>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-bold mb-0.5 tracking-wider">Status</p>
+                        <p class="text-xs font-bold text-gray-800">${n._ticketStatus || 'Open'}</p>
+                    </div>
+                </div>
+                ${n._ticketSubject ? `
+                <div class="mb-3">
+                    <p class="text-[10px] text-gray-400 uppercase font-bold mb-1 tracking-wider">Subject</p>
+                    <p class="text-sm font-semibold text-gray-900">${n._ticketSubject}</p>
+                </div>` : ''}
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold mb-1 tracking-wider">User's Message</p>
+                    <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-xl p-3">${n._ticketMessage || '—'}</p>
+                </div>
+                ${n._ticketReply ? `
+                <div class="mt-3 border-t border-gray-100 pt-3">
+                    <p class="text-[10px] text-green-600 uppercase font-bold mb-1 tracking-wider">Admin Reply</p>
+                    <p class="text-sm text-gray-700 leading-relaxed">${n._ticketReply}</p>
+                </div>` : ''}
+            </div>
+            ` : ''}
+
+            <!-- Contact / Other Message Box -->
+            ${n.type !== 'ticket' ? `
+            <div class="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    ${n._contactSubject ? `Subject: ${n._contactSubject}` : 'Message'}
+                </p>
+                <p class="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">
+                    ${n._contactMessage || n.message || 'No details available.'}
+                </p>
+            </div>
+            ` : ''}
+
+        </div>
+    `;
+
+    lucide.createIcons();
+}
+
+async function markAsRead(id, type, refId) {
+    try {
+        await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+
+        // Update local state
+        let notif = state.notifications.find(n => n._id === id);
+        if (!notif) {
+            notif = state.pageNotifications.find(n => n._id === id);
+        }
+
+        if (notif && !notif.isRead) {
+            notif.isRead = true;
+            state.unreadCount = Math.max(0, state.unreadCount - 1);
+            updateNotificationUI();
+
+            // If on notifications page, refresh table
+            if (state.currentPage === 'notifications') {
+                loadNotificationsTable(currentNotificationPage);
+            }
+        }
+
+        // Handle navigation and details
+        if (type === 'order' && refId) {
+            openOrderDetails(refId);
+        } else if (notif) {
+            // Show generic detail modal for other types
+            openNotificationModal(notif);
+        } else {
+            // Fallback: If not in state, fetch single notif (for safety)
+            try {
+                const fetched = await apiFetch(`/notifications/${id}`);
+                if (fetched) openNotificationModal(fetched);
+            } catch (fail) {
+                console.error("Failed to fetch notification details:", fail);
+            }
+        }
+
+        const dropdown = document.getElementById('notification-dropdown');
+        if (dropdown && !dropdown.classList.contains('opacity-0')) {
+            toggleNotificationDropdown();
+        }
+    } catch (err) {
+        console.error('Error marking read:', err);
+    }
+}
+
+async function markAllAsRead() {
+    try {
+        await apiFetch('/notifications/read-all', { method: 'PATCH' });
+        state.notifications.forEach(n => n.isRead = true);
+        state.unreadCount = 0;
+        updateNotificationUI();
+    } catch (err) {
+        console.error('Error marking all as read:', err);
+    }
 }
 
 /**
@@ -123,6 +604,20 @@ async function authFetch(url, options = {}) {
     }
 
     return response;
+}
+
+/**
+ * Helper for API requests that prepends the base URL and handles auth
+ */
+async function apiFetch(endpoint, options = {}) {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const response = await authFetch(url, options);
+    if (!response) return null;
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'API request failed');
+    }
+    return await response.json();
 }
 
 async function fetchAllData() {
@@ -181,7 +676,7 @@ async function fetchCustomers() {
 
 async function fetchReviews() {
     try {
-        const response = await authFetch(`${API_BASE_URL}/reviews`);
+        const response = await authFetch(`${API_BASE_URL}/reviews/admin`);
         if (!response.ok) throw new Error('Failed to fetch reviews');
         state.reviews = await response.json();
         if (state.currentPage === 'reviews') renderReviews(document.getElementById('main-content'));
@@ -205,7 +700,7 @@ function updateStats() {
     state.stats.products = state.products.length;
     state.stats.orders = state.orders.length;
     state.stats.customers = state.customers.length;
-    state.stats.sales = state.orders.reduce((acc, order) => acc + (order.total || 0), 0);
+    state.stats.sales = state.orders.reduce((acc, order) => acc + (order.totalAmount || order.total || 0), 0);
 
     // Refresh charts with real data
     initCharts();
@@ -288,6 +783,9 @@ function renderPage(page) {
         case 'offers':
             renderOffers(mainContent);
             break;
+        case 'notifications':
+            renderNotificationsPage();
+            break;
         default:
             renderDashboard(mainContent);
     }
@@ -354,7 +852,7 @@ function renderDashboard(container) {
                                     <td class="py-3 text-sm font-medium text-gray-900">${order.id}</td>
                                     <td class="py-3 text-sm text-gray-600">${order.customer}</td>
                                     <td class="py-3">${renderStatusBadge(order.status)}</td>
-                                    <td class="py-3 text-sm text-gray-900 text-right font-medium">${formatCurrency(order.total)}</td>
+                                    <td class="py-3 text-sm text-gray-900 text-right font-medium">${formatCurrency(order.totalAmount || order.total)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -371,11 +869,11 @@ function renderDashboard(container) {
                     ${state.reviews.slice(0, 4).map(review => `
                         <div class="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                             <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-medium">
-                                ${review.user.charAt(0)}
+                                ${(review.name || 'C').charAt(0)}
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between">
-                                    <p class="text-sm font-medium text-gray-900">${review.user}</p>
+                                    <p class="text-sm font-medium text-gray-900">${review.name || 'Anonymous'}</p>
                                     <span class="text-xs text-gray-500">${review.date}</span>
                                 </div>
                                 <p class="text-sm text-gray-600 truncate">${review.comment}</p>
@@ -423,8 +921,11 @@ function renderStatCard(title, value, change, icon, iconBg, iconColor) {
 function renderStatusBadge(status) {
     const styles = {
         'pending': 'bg-yellow-100 text-yellow-700',
+        'placed': 'bg-slate-100 text-slate-700',
+        'confirmed': 'bg-amber-100 text-amber-700',
+        'packed': 'bg-indigo-100 text-indigo-700',
         'processing': 'bg-blue-100 text-blue-700',
-        'shipped': 'bg-indigo-100 text-indigo-700',
+        'shipped': 'bg-blue-100 text-blue-700',
         'delivered': 'bg-green-100 text-green-700',
         'cancelled': 'bg-red-100 text-red-700',
         'active': 'bg-green-100 text-green-700',
@@ -436,8 +937,9 @@ function renderStatusBadge(status) {
         'returned': 'bg-orange-100 text-orange-700'
     };
 
-    const style = styles[status] || 'bg-gray-100 text-gray-700';
-    const label = status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const cleanStatus = (status || '').toLowerCase().replace(' (testing)', '');
+    const style = styles[cleanStatus] || 'bg-gray-100 text-gray-700';
+    const label = (status || 'Pending').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 
     return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}">${label}</span>`;
 }
@@ -877,7 +1379,7 @@ function renderOrdersTable(filteredOrders = null) {
                 </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-600">${order.date}</td>
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">${formatCurrency(order.total)}</td>
+            <td class="px-6 py-4 text-sm font-medium text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.payment)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.status)}</td>
             <td class="px-6 py-4 text-right">
@@ -902,109 +1404,341 @@ function filterOrders() {
     renderOrdersTable(filtered);
 }
 
-function openOrderDetails(id) {
+async function openOrderDetails(id) {
     const order = state.orders.find(o => o._id === id);
     if (!order) return;
 
     const modalContent = document.getElementById('modal-content');
+    const currentStatus = (order.orderStatus || order.status || 'Pending').toUpperCase();
+
+    // Helper for History Formatting
+    const formatHistoryTime = (dateStr) => {
+        const d = new Date(dateStr);
+        const datePart = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+        return `${datePart}; ${timePart}`;
+    };
+
     modalContent.innerHTML = `
-    <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-bold text-gray-900">Order Details</h2>
-        <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-8">
+        <div>
+            <h2 class="text-3xl font-bold text-[#1e1b4b] tracking-tight">Order Details</h2>
+            <div class="flex items-center gap-2 mt-1">
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Status:</span>
+                <span class="text-[11px] font-black uppercase text-indigo-600 tracking-widest">${currentStatus}</span>
+            </div>
+        </div>
+        <button onclick="closeModal()" class="p-2 hover:bg-slate-100 rounded-xl transition-all group">
+            <i data-lucide="x" class="w-6 h-6 text-slate-400 group-hover:text-slate-600"></i>
         </button>
     </div>
     
-    <div class="space-y-6">
-        <div class="flex flex-col md:flex-row gap-6 md:items-center justify-between p-4 bg-gray-50 rounded-xl">
-            <div>
-                <p class="text-xs text-gray-500 uppercase font-semibold">Order ID</p>
-                <p class="font-medium text-primary">${order.id}</p>
+    <div class="space-y-6 max-h-[72vh] overflow-y-auto pr-3 custom-scrollbar">
+        <!-- Top Info Grid: Customer & Order -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Customer Information -->
+            <div class="p-6 bg-[#f8fafc] rounded-2xl border border-slate-100">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Customer Information</p>
+                <h3 class="text-lg font-bold text-slate-900">${order.customer}</h3>
+                <p class="text-sm text-slate-500 mt-1">${order.email}</p>
+                <p class="text-sm text-slate-700 font-medium mt-1">${order.shippingAddress?.phone || order.phone || '9122278072'}</p>
             </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase font-semibold">Order Date</p>
-                <p class="font-medium text-gray-900">${order.date}</p>
+
+            <!-- Order Information -->
+            <div class="p-6 bg-[#f8fafc] rounded-2xl border border-slate-100">
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Order Information</p>
+                <div class="space-y-2">
+                    <p class="text-lg font-bold text-indigo-600">${order.id}</p>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Order Date:</span>
+                        <span class="font-bold text-slate-800">${new Date(order.createdAt || order.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Payment Method:</span>
+                        <span class="px-2 py-0.5 bg-amber-100/50 text-amber-700 text-[10px] font-black italic rounded border border-amber-200/50">Cash on Delivery</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">Payment Status:</span>
+                        <span class="font-bold text-slate-800">${order.paymentStatus || 'Pending'}</span>
+                    </div>
+                    ${order.paymentMethod === 'COD' ? `
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500 font-medium">COD Amount:</span>
+                        <span class="font-bold text-slate-900">₹${order.codAmount || order.totalAmount || order.total}</span>
+                    </div>` : ''}
+                </div>
             </div>
         </div>
-        
-        <div class="border border-gray-200 rounded-lg overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Item</th>
-                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
-                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Price</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    ${(order.items || []).length > 0 ? order.items.map(item => `
-                        <tr>
-                            <td class="px-4 py-3 text-sm">${item.name}</td>
-                            <td class="px-4 py-3 text-sm text-right">${item.quantity}</td>
-                            <td class="px-4 py-3 text-sm text-right">${formatCurrency(item.price)}</td>
-                        </tr>
-                    `).join('') : `
-                        <tr>
-                            <td colspan="3" class="px-4 py-3 text-sm text-center text-gray-500">No items found</td>
-                        </tr>
-                    `}
-                </tbody>
-                <tfoot class="bg-gray-50">
-                    <tr>
-                        <td colspan="2" class="px-4 py-3 text-sm font-medium text-gray-900 text-right">Total</td>
-                        <td class="px-4 py-3 text-sm font-bold text-gray-900 text-right">${formatCurrency(order.total)}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        
-        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div>
-                <p class="text-xs text-gray-500 uppercase">Payment Status</p>
-                <div class="mt-1">${renderStatusBadge(order.payment)}</div>
+
+        <!-- Addresses Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-5 border border-slate-100 rounded-2xl">
+                <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mb-3">Shipping Address</p>
+                <p class="text-sm text-slate-600 leading-relaxed font-medium">
+                    ${order.shippingAddress?.line1 || 'apna ghar'}<br>
+                    ${order.shippingAddress?.line2 || ''}<br>
+                    ${order.shippingAddress?.city || 'Sitamarhi'}, ${order.shippingAddress?.state || 'Bihar'} - <span class="font-bold text-slate-900">${order.shippingAddress?.pincode || '843302'}</span><br>
+                    <span class="text-slate-400 mt-1 block">+91 ${order.shippingAddress?.phone || '9122278072'}</span>
+                </p>
             </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase">Order Status</p>
-                <div class="mt-1">${renderStatusBadge(order.status)}</div>
+            <div class="p-5 border border-slate-100 rounded-2xl">
+                <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mb-3">Billing Address</p>
+                <p class="text-sm text-slate-600 leading-relaxed font-medium">
+                    ${order.billingAddress?.line1 || order.shippingAddress?.line1 || 'apna ghar'}<br>
+                    ${order.billingAddress?.line2 || order.shippingAddress?.line2 || ''}<br>
+                    ${order.billingAddress?.city || order.shippingAddress?.city || 'Sitamarhi'}, ${order.billingAddress?.state || order.shippingAddress?.state || 'Bihar'} - <span class="font-bold text-slate-900">${order.billingAddress?.pincode || order.shippingAddress?.pincode || '843302'}</span><br>
+                    <span class="text-slate-400 mt-1 block">+91 ${order.billingAddress?.phone || order.shippingAddress?.phone || '9122278072'}</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Bottom Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-4">
+                <div class="p-6 bg-white border border-slate-100 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Financial Breakdown</p>
+                    <div class="space-y-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-500">Subtotal</span>
+                            <span class="font-bold text-slate-900">₹${order.subtotal || order.totalAmount || order.total}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-500">Shipping Charge</span>
+                            <span class="font-bold text-slate-900">₹${order.shippingCharge || 0}</span>
+                        </div>
+                        <div class="flex justify-between text-xl pt-4 border-t border-slate-50">
+                            <span class="font-bold text-slate-900">Grand Total</span>
+                            <span class="font-black text-indigo-600">₹${order.totalAmount || order.total}</span>
+                        </div>
+                        <div class="flex justify-between text-sm mt-3 pt-3">
+                            <span class="text-slate-800 font-bold">Amount to Collect:</span>
+                            <span class="font-bold text-slate-900">₹${order.codAmount || order.totalAmount || order.total}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-white border border-slate-100 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Admin Note</p>
+                    <textarea id="admin-note-input" onblur="saveAdminNote('${order._id}', this.value)" class="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-100 transition-all resize-none h-20" placeholder="Enter a note...">${order.adminNote || ''}</textarea>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="p-6 bg-white border border-slate-100 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Invoice</p>
+                        <p class="text-[11px] font-bold ${order.invoiceId ? 'text-indigo-600' : 'text-slate-400'}">${order.invoiceId?.invoiceNumber || 'Not Generated'}</p>
+                    </div>
+                    <div class="flex justify-between items-center text-sm mb-4">
+                        <span class="text-slate-500">Invoice Date:</span>
+                        <span class="font-bold text-slate-800">${order.invoiceId ? new Date(order.invoiceId.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '---'}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button 
+                            onclick="${order.invoiceId ? `window.open('${API_BASE_URL}/invoices/${order.invoiceId._id}/download?token=${localStorage.getItem('token')}', '_blank')` : "showToast('Invoice not generated yet', 'info')"}" 
+                            class="py-2.5 ${order.invoiceId ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-slate-200 cursor-not-allowed'} text-white text-[11px] font-bold rounded-xl transition-all">
+                            Download Invoice
+                        </button>
+                        <button 
+                            onclick="${order.invoiceId ? `resendInvoiceEmail('${order.invoiceId._id}')` : "showToast('Invoice not generated yet', 'info')"}" 
+                            class="py-2.5 ${order.invoiceId ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-slate-50 text-slate-400 cursor-not-allowed'} text-[11px] font-bold rounded-xl transition-all">
+                            Resend Invoice
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-white border border-slate-100 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Shipping & Tracking</p>
+                        <button onclick="window.open('${API_BASE_URL}/shipping/${order.id}/label?token=${localStorage.getItem('token')}', '_blank')" class="px-3 py-1 bg-white border border-slate-100 text-[9px] text-indigo-600 font-black uppercase rounded-lg hover:bg-indigo-50 transition-all shadow-sm">Print Shipping Label</button>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Courier:</span>
+                            <span class="text-lg font-bold text-slate-800">${order.courierName || 'Genzi Logistics'}</span>
+                        </div>
+                        <p class="text-xs text-slate-600 font-medium mt-1">Tracking ID: <span class="font-bold text-slate-900">${order.trackingId || '1112dxdfvgbgh'}</span> • <span class="text-[10px] text-slate-400">${order.estimatedDeliveryDate || '1 Mar — 3 Mar'}</span></p>
+                        <p class="text-[10px] text-slate-400">Est. Delivery: <span class="font-bold text-slate-700">${order.estimatedDeliveryDate || '1 Mar — 3 Mar'}</span></p>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-white border border-slate-100 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Status History</p>
+                    <div class="space-y-4">
+                        ${(order.statusHistory || []).slice().reverse().map((t, idx) => `
+                            <div class="flex gap-4 relative">
+                                <div class="flex flex-col items-center">
+                                    <div class="w-3 h-3 rounded-full ${idx === 0 ? 'bg-indigo-500 ring-4 ring-indigo-50' : 'bg-slate-200'}"></div>
+                                    ${idx !== (order.statusHistory.length - 1) ? '<div class="w-0.5 h-full bg-slate-50 absolute top-3"></div>' : ''}
+                                </div>
+                                <div class="flex-1 -mt-0.5">
+                                    <p class="text-xs font-black text-slate-900 uppercase tracking-tight">${t.status} <span class="text-[9px] font-normal text-slate-500 ml-1">Updated to ${t.status.toLowerCase()}</span></p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5 font-medium">${formatHistoryTime(t.updatedAt)} • Admin</p>
+                                </div>
+                                ${idx === 1 ? `<div class="w-2.5 h-2.5 rounded-full bg-slate-200/50 absolute -left-[1px] top-12"></div>` : ''}
+                            </div>
+                        `).join('') || `
+                            <div class="flex gap-4">
+                                <div class="w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-indigo-50"></div>
+                                <div class="flex-1 -mt-0.5">
+                                    <p class="text-xs font-black text-slate-900 uppercase tracking-tight">PENDING <span class="text-[9px] font-normal text-slate-500 ml-1">Updated to pending</span></p>
+                                    <p class="text-[10px] text-slate-400 mt-0.5 font-medium">3 Mar 2026; 4.44 am • Admin</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-4 mt-4">
+                                <div class="w-3 h-3 rounded-full bg-slate-200"></div>
+                                <div class="flex-1 -mt-0.5">
+                                    <p class="text-xs font-black text-slate-900 uppercase tracking-tight">PLACED <span class="text-[9px] font-normal text-slate-500 ml-1">Order placed successfully</span></p>
+                                </div>
+                            </div>
+                        `}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
-    <div class="flex gap-3 mt-6">
-        <button onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Close</button>
-        <button onclick="updateOrderStatus('${order._id}'); closeModal();" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">Update Status</button>
+    <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100">
+        <button onclick="closeModal()" class="px-8 py-3.5 bg-[#f1f5f9] text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[11px] tracking-widest">Close</button>
+        <button onclick="cancelOrderAction('${order.id}')" class="px-8 py-3.5 border-2 border-red-50 text-red-500 font-black rounded-2xl hover:bg-red-50 transition-all uppercase text-[11px] tracking-widest">Canca. Order</button>
+        <button onclick="showStatusUpdateForm('${order.id}')" class="flex-1 px-8 py-3.5 bg-indigo-500 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-600 hover:-translate-y-0.5 transition-all uppercase text-[11px] tracking-widest text-center">Update Order Status</button>
     </div>
-`;
+    `;
 
     document.getElementById('generic-modal').classList.remove('hidden');
     lucide.createIcons();
 }
 
-async function updateOrderStatus(id) {
-    const order = state.orders.find(o => o._id === id);
-    if (!order) return;
-
-    const statuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-    const currentIndex = statuses.indexOf(order.status);
-    const nextIndex = (currentIndex + 1) % statuses.length;
-    const newStatus = statuses[nextIndex];
-
+async function saveAdminNote(id, note) {
     try {
-        const response = await authFetch(`${API_BASE_URL}/orders/${id}`, {
+        await authFetch(`${API_BASE_URL}/orders/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus })
+            body: JSON.stringify({ adminNote: note })
         });
-
-        if (!response.ok) throw new Error('Failed to update order status');
-
-        showToast(`Order status updated to ${newStatus}`, 'success');
-        await fetchOrders();
-    } catch (error) {
-        console.error('Error updating order status:', error);
-        showToast('Error updating status', 'error');
+        showToast('System: Admin note synchronized successfully', 'success');
+        const order = state.orders.find(o => o._id === id);
+        if (order) order.adminNote = note;
+    } catch (err) {
+        showToast('Error: Failed to sync note', 'error');
     }
 }
+
+async function cancelOrderAction(id) {
+    if (!confirm('DANGER: This will permanently cancel the order. Proceed?')) return;
+    try {
+        const response = await authFetch(`${API_BASE_URL}/shipping/${id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderStatus: 'Cancelled', message: 'Order has been cancelled by Admin.' })
+        });
+        if (!response.ok) throw new Error('Cancellation refusal from system');
+        showToast('SUCCESS: Order status set to CANCELLED', 'success');
+        await fetchOrders();
+        closeModal();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+function showStatusUpdateForm(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+    const modalContent = document.getElementById('modal-content');
+
+    const currentStatus = order.orderStatus || order.status;
+
+    modalContent.innerHTML = `
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900">Update Shipping Status</h2>
+            <p class="text-xs text-slate-400 mt-1 uppercase font-bold tracking-wider">Order #${order.id}</p>
+        </div>
+        <button onclick="openOrderDetails('${order._id}')" class="p-2 hover:bg-slate-100 rounded-full transition-colors group">
+            <i data-lucide="arrow-left" class="w-5 h-5 text-slate-400 group-hover:text-indigo-500"></i>
+        </button>
+    </div>
+
+    <form onsubmit="handleStatusUpdate(event, '${order.id}')" class="space-y-6">
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Target Status</label>
+            <select name="status" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-700">
+                <option value="Placed" ${currentStatus === 'Placed' ? 'selected' : ''}>Placed</option>
+                <option value="Confirmed" ${currentStatus === 'Confirmed' ? 'selected' : ''}>Confirmed</option>
+                <option value="Packed" ${currentStatus === 'Packed' ? 'selected' : ''}>Packed</option>
+                <option value="Shipped" ${currentStatus === 'Shipped' ? 'selected' : ''}>Shipped</option>
+                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                <option value="Cancelled" ${currentStatus === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Courier Partner</label>
+                <input type="text" name="courierName" value="${order.courierName || 'Genzi Logistics'}" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-700">
+            </div>
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Tracking Number</label>
+                <input type="text" name="trackingId" value="${order.trackingId || ''}" placeholder="GZ-XXXX-XXXX" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-bold text-slate-700">
+            </div>
+        </div>
+
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Status Message / Note</label>
+            <textarea name="message" placeholder="Optional: Add a message for the customer timeline..." class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-slate-700 h-24 resize-none"></textarea>
+        </div>
+
+        <button type="submit" class="w-full py-4 bg-indigo-500 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-600 hover:-translate-y-1 transition-all uppercase text-xs tracking-[0.2em] mt-2">Publish Update & Notify</button>
+    </form>
+`;
+    lucide.createIcons();
+}
+
+async function handleStatusUpdate(event, orderId) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+    const submitBtn = event.target.querySelector('button');
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="animate-pulse">UPDATING SYSTEM...</span>';
+
+        const response = await authFetch(`${API_BASE_URL}/shipping/${orderId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...data,
+                updatedBy: 'Admin'
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to synchronize status');
+
+        showToast('Success: Order status synchronized and customer notified!', 'success');
+        await fetchOrders();
+        closeModal();
+    } catch (error) {
+        console.error('Status sync error:', error);
+        showToast(error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Publish Update & Notify';
+    }
+}
+
+async function resendInvoiceEmail(invoiceId) {
+    if (!confirm('Authenticate: Resend digital invoice to customer email?')) return;
+    try {
+        const response = await authFetch(`${API_BASE_URL}/invoices/${invoiceId}/resend`, { method: 'POST' });
+        if (!response.ok) throw new Error('Network error during transmission');
+        showToast('Invoice dispatched successfully!', 'success');
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
+}
+
 
 function showStatusProductDetails(status) {
     const orders = state.orders.filter(o => o.status === status);
@@ -1281,7 +2015,7 @@ function renderReviews(container) {
         return `
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4 text-sm font-medium text-gray-900">${productName}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">${review.user}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">${review.name || 'Anonymous'}</td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-1">
                                         ${renderStars(review.rating)}
@@ -1379,8 +2113,9 @@ async function rejectReview(id) {
             body: JSON.stringify({ status: 'rejected' })
         });
         if (!response.ok) throw new Error('Failed to reject review');
-        showToast('Review rejected!', 'success');
-        await fetchReviews();
+        showToast('Status updated!', 'success');
+        closeModal(); // Assuming hideStatusUpdateForm() is equivalent to closeModal() in this context
+        await fetchReviews(); // Refresh table
     } catch (error) {
         console.error('Error rejecting review:', error);
     }
@@ -1432,14 +2167,14 @@ function renderDiscounts(container) {
                     <h3 class="text-lg font-bold text-gray-900 mb-1">${discount.code}</h3>
                     <p class="text-sm text-gray-500 mb-4">
                         ${discount.type === 'percentage' ? `${discount.value}% OFF` :
-            discount.type === 'fixed' ? `$${discount.value} OFF` :
+            discount.type === 'fixed' ? `₹${discount.value} OFF` :
                 'Buy X Get Y Free'}
                     </p>
                     
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between text-gray-600">
                             <span>Min. Order</span>
-                            <span class="font-medium">$${discount.minOrder}</span>
+                            <span class="font-medium">₹${discount.minOrder}</span>
                         </div>
                         <div class="flex justify-between text-gray-600">
                             <span>Usage</span>
@@ -1486,7 +2221,7 @@ function openDiscountModal() {
                     <label class="block text-sm font-medium text-gray-700 mb-1">Discount Type</label>
                     <select name="type" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                         <option value="percentage">Percentage (%)</option>
-                        <option value="fixed">Fixed Amount ($)</option>
+                        <option value="fixed">Fixed Amount (₹)</option>
                         <option value="bogo">Buy X Get Y</option>
                     </select>
                 </div>
@@ -1498,7 +2233,7 @@ function openDiscountModal() {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Order Amount ($)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Order Amount (₹)</label>
                     <input type="number" name="minOrder" placeholder="0"
                         class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
                 </div>
@@ -1578,22 +2313,6 @@ async function deleteDiscount(id) {
     }
 }
 
-function toggleDiscountStatus(id) {
-    const discount = state.discounts.find(d => d.id === id);
-    if (discount) {
-        discount.status = discount.status === 'active' ? 'inactive' : 'active';
-        showToast(`Discount ${discount.status}!`, 'success');
-        renderDiscounts();
-    }
-}
-
-function deleteDiscount(id) {
-    if (confirm('Are you sure you want to delete this discount?')) {
-        state.discounts = state.discounts.filter(d => d.id !== id);
-        showToast('Discount deleted!', 'success');
-        renderDiscounts();
-    }
-}
 
 // ==========================================
 // 10. OFFER VIDEOS MANAGEMENT
@@ -2092,3 +2811,200 @@ window.addEventListener('resize', () => {
         sidebar.classList.add('-translate-x-full');
     }
 });
+
+/**
+ * ==========================================
+ * NOTIFICATIONS PAGE LOGIC
+ * ==========================================
+ */
+let currentNotificationFilter = 'all';
+let currentNotificationPage = 1;
+
+async function renderNotificationsPage() {
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+
+    // Direct HTML Injection for immediate rendering matching user design
+    mainContent.innerHTML = `
+        <div id="notifications-page" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Notifications</h1>
+                    <p class="text-sm text-gray-500">Manage all system activity and alerts</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="markAllAsReadPage()" class="px-4 py-2 text-sm font-semibold text-primary bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+                        Mark all as read
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap items-center gap-2">
+                <button onclick="filterNotifications('all')" class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${currentNotificationFilter === 'all' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">All</button>
+                <button onclick="filterNotifications('order')" class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${currentNotificationFilter === 'order' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">Orders</button>
+                <button onclick="filterNotifications('review')" class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${currentNotificationFilter === 'review' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">Reviews</button>
+                <button onclick="filterNotifications('ticket')" class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${currentNotificationFilter === 'ticket' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">Tickets</button>
+                <button onclick="filterNotifications('contact')" class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${currentNotificationFilter === 'contact' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">Contacts</button>
+            </div>
+
+            <!-- Table Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50/50 border-b border-gray-100">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Type</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Notification</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Date</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notifications-table-body" class="divide-y divide-gray-50 text-sm">
+                            <!-- Injected rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer / Pagination -->
+                <div class="p-4 bg-gray-50/30 border-t border-gray-100 flex items-center justify-between" id="notifications-pagination">
+                </div>
+            </div>
+        </div>
+    `;
+
+    loadNotificationsTable();
+}
+
+async function loadNotificationsTable(page = 1) {
+    currentNotificationPage = page;
+    const tbody = document.getElementById('notifications-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-gray-400">Loading notifications...</td></tr>';
+
+    try {
+        const url = `/notifications?page=${page}&limit=10${currentNotificationFilter !== 'all' ? `&type=${currentNotificationFilter}` : ''}`;
+        const res = await apiFetch(url);
+
+        // Save to state so markAsRead can find the full object
+        state.pageNotifications = res.notifications;
+
+        if (res.notifications.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-gray-400 italic">No notifications found in this category</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = res.notifications.map(n => `
+            <tr class="hover:bg-gray-50/50 transition-colors group cursor-pointer" onclick="markAsRead('${n._id}', '${n.type}', '${n.referenceId}')">
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getNotificationBadgeClass(n.type)}">
+                        ${n.type || 'System'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 max-w-sm">
+                    <div class="flex flex-col gap-1">
+                        <span class="font-bold text-gray-900">${n.title || 'System Notification'}</span>
+                        <span class="text-xs text-gray-600 line-clamp-2">${n.message || 'No details available.'}</span>
+                        ${n.email || n.phone ? `
+                            <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 pt-1.5 border-t border-gray-50">
+                                ${n.email ? `<span class="text-[10px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3 text-primary/50"></i> ${n.email}</span>` : ''}
+                                ${n.phone ? `<span class="text-[10px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded flex items-center gap-1"><i data-lucide="phone" class="w-3 h-3 text-primary/50"></i> ${n.phone}</span>` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-gray-500 font-medium">${new Date(n.createdAt).toLocaleDateString()} <span class="text-xs opacity-50 block">${new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${n.isRead ? 'bg-gray-200' : 'bg-primary'}"></span>
+                        <span class="text-xs font-bold tracking-tight ${n.isRead ? 'text-gray-400' : 'text-primary'} uppercase">${n.isRead ? 'Read' : 'Unread'}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-1">
+                        <button onclick="event.stopPropagation(); deleteNotificationPage('${n._id}')" class="p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        ${!n.isRead ? `<button onclick="event.stopPropagation(); markSingleAsReadPage('${n._id}')" class="p-2 text-gray-400 hover:text-primary rounded-lg transition-colors">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        </button>` : ''}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        renderPaginationUI(res.total, res.page, res.pages);
+        lucide.createIcons();
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-red-500">Error: ${err.message}</td></tr>`;
+    }
+}
+
+function getNotificationBadgeClass(type) {
+    const safeType = (type || 'system').toLowerCase();
+    switch (safeType) {
+        case 'order': return 'bg-emerald-100 text-emerald-700';
+        case 'review': return 'bg-amber-100 text-amber-700';
+        case 'ticket': return 'bg-blue-100 text-blue-700';
+        case 'contact': return 'bg-purple-100 text-purple-700';
+        default: return 'bg-gray-100 text-gray-700';
+    }
+}
+
+function renderPaginationUI(total, page, pages) {
+    const container = document.getElementById('notifications-pagination');
+    if (!container) return;
+
+    container.innerHTML = `
+        <p class="text-xs font-bold text-gray-400 uppercase">Showing ${Math.min(total, (page - 1) * 10 + 1)}-${Math.min(total, page * 10)} of ${total}</p>
+        <div class="flex items-center gap-1">
+            <button onclick="loadNotificationsTable(${page - 1})" ${page <= 1 ? 'disabled' : ''} class="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-20 transition-all">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <span class="px-3 text-sm font-bold text-gray-700">${page} / ${pages}</span>
+            <button onclick="loadNotificationsTable(${page + 1})" ${page >= pages ? 'disabled' : ''} class="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-20 transition-all">
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+    `;
+    lucide.createIcons();
+}
+
+function filterNotifications(type) {
+    currentNotificationFilter = type;
+    currentNotificationPage = 1;
+    renderNotificationsPage();
+}
+
+async function markSingleAsReadPage(id) {
+    try {
+        await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+        loadNotificationsTable(currentNotificationPage);
+        fetchUnreadCount();
+    } catch (err) {
+        showToast("Error update", 'error');
+    }
+}
+
+async function markAllAsReadPage() {
+    try {
+        await markAllAsRead();
+        renderNotificationsPage();
+    } catch (err) {
+        console.error('Error marking all as read:', err);
+    }
+}
+
+async function deleteNotificationPage(id) {
+    if (!confirm("Permenently delete this notification?")) return;
+    try {
+        await apiFetch(`/notifications/${id}`, { method: 'DELETE' });
+        showToast("Deleted");
+        loadNotificationsTable(currentNotificationPage);
+        fetchUnreadCount();
+    } catch (err) {
+        showToast("Failed to delete", 'error');
+    }
+}

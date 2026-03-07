@@ -3,7 +3,12 @@
  * Handles real-time status updates and timeline animation
  */
 
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -57,7 +62,7 @@ function populateTrackingUI(order) {
     document.getElementById('orderImg').src = firstItem.image || '';
     document.getElementById('orderProductName').textContent = firstItem.name || 'Genzi Product';
     document.getElementById('orderIdDisplay').textContent = `Order #${order.id}`;
-    document.getElementById('orderTotal').textContent = `₹${order.total}`;
+    document.getElementById('orderTotal').textContent = `₹${order.totalAmount || order.total}`;
 
     const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     document.getElementById('orderDate').textContent = `Placed on ${dateStr}`;

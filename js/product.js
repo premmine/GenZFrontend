@@ -2,7 +2,12 @@
    PRODUCT DETAILS JAVASCRIPT
    ========================================================= */
 
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -135,8 +140,13 @@ function renderProductDetails(product) {
     if (product.stock <= 0) {
         document.getElementById('stockStatus').classList.add('bg-gray-100', 'text-gray-500');
         document.getElementById('stockStatus').innerHTML = '<i class="fas fa-times-circle"></i> Out of Stock';
-        document.getElementById('buyNowBtn').disabled = true;
-        document.getElementById('buyNowBtn').classList.add('opacity-50', 'cursor-not-allowed');
+
+        // Hide purchase actions, show Notify button
+        document.getElementById('purchaseActions')?.classList.add('hidden');
+        document.getElementById('notifyAction')?.classList.remove('hidden');
+    } else {
+        document.getElementById('purchaseActions')?.classList.remove('hidden');
+        document.getElementById('notifyAction')?.classList.add('hidden');
     }
 
     // Gallery - Filter out potentially broken or invalid URLs
@@ -151,17 +161,31 @@ function renderProductDetails(product) {
     mainImg.src = formatImageUrl(product.image);
 
     thumbContainer.innerHTML = images.map((img, i) => `
-        <div class="gallery-thumbnail w-16 h-16 md:w-20 md:h-20 bg-white border border-slate-200 rounded-lg p-1 cursor-pointer transition-all flex-shrink-0 flex items-center justify-center ${i === 0 ? 'active' : ''}" 
+        <div class="gallery-thumbnail w-16 h-16 md:w-20 md:h-20 bg-white border border-slate-200 rounded-lg p-1 cursor-pointer transition-all flex-shrink-0 flex items-center justify-center snap-center ${i === 0 ? 'active' : ''}" 
              onclick="updateGallery('${img}', this)">
-            <img src="${img}" class="max-w-full max-h-full object-contain" onerror="this.parentElement.style.display='none'">
+            <img src="${img}" class="max-w-full max-h-full object-contain mix-blend-multiply" onerror="this.parentElement.style.display='none'">
         </div>
     `).join('');
 
     window.updateGallery = (imgUrl, el) => {
-        mainImg.src = imgUrl;
-        document.querySelectorAll('.gallery-thumbnail').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
+        // Simple fade effect
+        mainImg.style.opacity = '0.5';
+        setTimeout(() => {
+            mainImg.src = imgUrl;
+            mainImg.style.opacity = '1';
+        }, 150);
+
+        document.querySelectorAll('.gallery-thumbnail').forEach(t => t.classList.remove('active', 'ring-2', 'ring-amber-500', 'border-transparent'));
+        el.classList.add('active', 'ring-2', 'ring-amber-500', 'border-transparent');
+
+        // Auto scroll thumbnail into view on mobile
+        if (window.innerWidth < 768) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
     };
+
+    // Sticky CTA Observer for mobile
+    setTimeout(() => initStickyCTA(), 500);
 
     // Highlights
     const highlights = product.highlights && product.highlights.length > 0
@@ -205,14 +229,75 @@ function renderProductDetails(product) {
         };
     }
 
-    const buyNowBtn = document.getElementById('buyNowBtn');
-    if (buyNowBtn) {
-        buyNowBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            addToCart(product);
-            setTimeout(() => window.location.href = 'cart.html', 500);
-        };
+    const notifyBtn = document.getElementById('notifyBtn');
+    if (notifyBtn) {
+        notifyBtn.onclick = () => handleNotifyMe(product._id);
+    }
+}
+
+function initStickyCTA() {
+    const actionsContainer = document.getElementById('productActionsContainer');
+    const header = document.querySelector('nav');
+
+    if (!actionsContainer || window.innerWidth >= 768) return;
+
+    // We want the CTA to be sticky only when scrolling past the main image/price area
+    const sentinel = document.createElement('div');
+    sentinel.id = 'cta-sentinel';
+    actionsContainer.parentNode.insertBefore(sentinel, actionsContainer);
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+                // Scrolled past, make sticky
+                actionsContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-[100]', 'p-4', 'bg-white', 'border-t', 'shadow-[0_-10px_30px_rgba(0,0,0,0.1)]');
+                actionsContainer.classList.remove('relative', 'opacity-0', 'translate-y-full');
+                actionsContainer.classList.add('opacity-100', 'translate-y-0');
+            } else {
+                // Scrolled back up, return to flow
+                actionsContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-[100]', 'p-4', 'bg-white', 'border-t', 'shadow-[0_-10px_30px_rgba(0,0,0,0.1)]');
+                actionsContainer.classList.add('relative');
+                // Reset animation classes so it doesn't flash
+                actionsContainer.classList.remove('opacity-0', 'translate-y-full', 'opacity-100', 'translate-y-0');
+            }
+        });
+    }, { rootMargin: '-100px 0px 0px 0px' }); // Offset for navbar
+
+    observer.observe(sentinel);
+}
+
+async function handleNotifyMe(productId) {
+    if (isLoggedIn()) {
+        const user = JSON.parse(localStorage.getItem('user'));
+        submitNotification(productId, user.email);
+    } else {
+        // Flipkart style: Show login prompt if guest tries to notify
+        showAuthModal("get notified when this item is back in stock");
+    }
+}
+
+async function submitNotification(productId, email) {
+    const notifyBtn = document.getElementById('notifyBtn');
+    const originalContent = notifyBtn.innerHTML;
+
+    try {
+        notifyBtn.disabled = true;
+        notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting...';
+
+        const res = await apiFetch(`/products/notify`, {
+            method: 'POST',
+            body: JSON.stringify({ productId, email })
+        });
+
+        // Instant Visual Feedback on Button
+        notifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> Notification Set ✓';
+        notifyBtn.classList.replace('bg-slate-800', 'bg-green-600');
+
+        showToast(res.message || 'Notification set! We will email you.');
+    } catch (err) {
+        showToast(err.message || 'Failed to set notification', 'error');
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalContent;
     }
 }
 

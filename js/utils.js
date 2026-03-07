@@ -1,6 +1,9 @@
 // Utility Functions for GenziKart E-commerce
 
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+// Use local backend if running locally, otherwise use production
+var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+console.log(`🌐 API_BASE_URL set to: ${API_BASE_URL} (Local: ${isLocal})`);
 
 /**
  * Formats an image URL for display.

@@ -161,7 +161,8 @@ function createOrderRow(order) {
     const statusClass = `status-${status}`;
 
     // Formatting total
-    const total = typeof order.total === 'number' ? `₹${order.total.toLocaleString('en-IN')}` : order.total || '—';
+    const actualTotal = order.totalAmount || order.total;
+    const total = typeof actualTotal === 'number' ? `₹${actualTotal.toLocaleString('en-IN')}` : actualTotal || '—';
 
     // Get first product image from order items
     const items = order.items || order.products || [];
@@ -487,7 +488,12 @@ async function loadTickets() {
 /* ------------------------------------------------
    INIT
    ------------------------------------------------ */
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // Basic init

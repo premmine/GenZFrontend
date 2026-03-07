@@ -1,4 +1,9 @@
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const profileForm = document.getElementById('profileForm');
@@ -135,28 +140,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 profilePhone.value = currentUser.phone || '';
                 profileWhatsapp.value = currentUser.whatsapp || '';
 
-                // Populate structured address
-                const addr = currentUser.address || {};
+                // Populate from default/first address in the array
+                const addresses = currentUser.addresses || [];
+                const addr = addresses.find(a => a.isDefault) || addresses[0] || {};
+
+                // Store address ID for update logic
+                if (addr._id) profileForm.dataset.addressId = addr._id;
+
                 addrLine1.value = addr.line1 || '';
                 addrLine2.value = addr.line2 || '';
-                // Restore pincode and lock city/state if present
+
                 if (addr.pincode) {
                     profilePincode.value = addr.pincode;
-                    profilePincode.dataset.district = addr.district || '';
-                    profilePincode.dataset.state = addr.state || '';
                     addrCity.value = addr.city || '';
                     addrState.value = addr.state || '';
-                    if (addr.district) {
-                        setCityStateLocked(true);
-                        setPincodeStatus('success', addr.district);
-                    }
-                } else {
-                    addrCity.value = addr.city || '';
-                    addrState.value = addr.state || '';
+                    setPincodeStatus('success', addr.city || 'Verified');
                 }
 
                 // Restore address type toggle
-                const savedType = addr.type || 'home';
+                const savedType = (addr.addressType || 'Home').toLowerCase();
                 addrTypeInput.value = savedType;
                 document.querySelectorAll('.addr-type-btn').forEach(b => {
                     if (b.dataset.value === savedType) {
@@ -406,35 +408,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!currentUser) throw new Error('User not found');
 
-            const profileData = {
-                name: profileName.value.trim(),
-                phone: profilePhone.value.trim(),
-                whatsapp: profileWhatsapp.value.trim(),
-                address: {
-                    line1: addrLine1.value.trim(),
-                    line2: addrLine2.value.trim(),
-                    pincode: profilePincode.value.trim(),
-                    district: profilePincode.dataset.district || '',
-                    city: addrCity.value.trim(),
-                    state: addrState.value.trim(),
-                    type: addrTypeInput.value
-                }
-            };
-
-            const updateRes = await fetch(`${API_BASE_URL}/users/${currentUser._id}`, {
+            // 1. Update basic profile info
+            await apiFetch(`/users/${currentUser._id}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(profileData)
+                body: JSON.stringify({
+                    name: profileName.value.trim(),
+                    phone: profilePhone.value.trim(),
+                    whatsapp: profileWhatsapp.value.trim()
+                })
             });
 
-            if (!updateRes.ok) throw new Error('Failed to update profile');
+            // 2. Save/Update Address
+            const addrData = {
+                name: profileName.value.trim(),
+                phone: profilePhone.value.trim(),
+                line1: addrLine1.value.trim(),
+                line2: addrLine2.value.trim(),
+                pincode: profilePincode.value.trim(),
+                city: addrCity.value.trim(),
+                state: addrState.value.trim(),
+                addressType: (addrTypeInput.value || 'Home').charAt(0).toUpperCase() + (addrTypeInput.value || 'Home').slice(1)
+            };
+
+            const addressId = profileForm.dataset.addressId;
+            if (addressId) {
+                // Update existing
+                await apiFetch(`/users/address/${addressId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(addrData)
+                });
+            } else {
+                // Create new
+                await apiFetch('/users/address', {
+                    method: 'POST',
+                    body: JSON.stringify(addrData)
+                });
+            }
 
             // Success
             showModalAlert('Profile updated successfully!', 'success');
-            window.location.href = 'index.html';
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1500);
 
         } catch (error) {
             console.error('Profile Error:', error);

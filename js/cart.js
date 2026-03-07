@@ -2,7 +2,12 @@
    STABLE CART ENGINE – PRODUCTION STYLE
 ========================================= */
 
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 const FREE_GIFT_THRESHOLD = 1499;
 

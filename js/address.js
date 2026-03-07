@@ -1,4 +1,9 @@
-var API_BASE_URL = window.API_BASE_URL || 'https://gen-z-backend.vercel.app/api';
+if (typeof isLocal === 'undefined') {
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+}
 
 let currentUser = null;
 
@@ -56,15 +61,15 @@ async function loadProfileAndAddress() {
         const defaultAddr = addresses.find(a => a.isDefault) || addresses[0];
 
         if (defaultAddr) {
-            document.getElementById('addrName').value = defaultAddr.fullName || currentUser.name;
-            document.getElementById('addrLine1').value = defaultAddr.houseNo || '';
-            document.getElementById('addrLine2').value = defaultAddr.area || '';
+            document.getElementById('addrName').value = defaultAddr.name || currentUser.name || '';
+            document.getElementById('addrLine1').value = defaultAddr.line1 || '';
+            document.getElementById('addrLine2').value = defaultAddr.line2 || '';
             document.getElementById('addrPincode').value = defaultAddr.pincode || '';
             document.getElementById('addrCity').value = defaultAddr.city || '';
             document.getElementById('addrState').value = defaultAddr.state || '';
 
             // Set type
-            const typeValue = defaultAddr.addressType?.toLowerCase() === 'work' ? 'work' : 'home';
+            const typeValue = (defaultAddr.addressType || 'Home').toLowerCase() === 'work' ? 'work' : 'home';
             document.getElementById('addrType').value = typeValue;
             const btn = document.getElementById(typeValue === 'home' ? 'typeHome' : 'typeWork');
             if (btn) btn.click();
@@ -101,19 +106,18 @@ async function handleFormSubmit(e) {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...';
 
     const addrData = {
-        fullName: document.getElementById('addrName').value.trim(),
+        name: document.getElementById('addrName').value.trim(),
         phone: document.getElementById('addrPhone').value.trim(),
         pincode: document.getElementById('addrPincode').value.trim(),
         state: document.getElementById('addrState').value.trim(),
         city: document.getElementById('addrCity').value.trim(),
-        houseNo: document.getElementById('addrLine1').value.trim(),
-        area: document.getElementById('addrLine2').value.trim(),
+        line1: document.getElementById('addrLine1').value.trim(),
+        line2: document.getElementById('addrLine2').value.trim(),
         addressType: document.getElementById('addrType').value === 'home' ? 'Home' : 'Work'
     };
 
     try {
         // We always save/update address and then proceed
-        // Check if we should update an existing address or just save a new one as default
         const addresses = currentUser.addresses || [];
         const existingAddr = addresses.find(a => a.isDefault) || addresses[0];
 
@@ -130,7 +134,6 @@ async function handleFormSubmit(e) {
                 method: 'POST',
                 body: JSON.stringify(addrData)
             });
-            // Result from POST address usually contains the new address with _id
             localStorage.setItem('selectedAddress', JSON.stringify(res.address || addrData));
         }
 

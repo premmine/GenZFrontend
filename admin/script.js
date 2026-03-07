@@ -114,57 +114,9 @@ function initNotifications() {
 }
 
 function initAdminSocket() {
-    // Load Socket.IO client script dynamically if not present
-    if (typeof io === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
-        script.onload = () => setupSocketConnection();
-        script.onerror = () => startNotificationPolling();
-        document.head.appendChild(script);
-    } else {
-        setupSocketConnection();
-    }
-}
-
-function setupSocketConnection() {
-    try {
-        const backendUrl = API_BASE_URL.replace('/api', '');
-        socket = io(backendUrl, {
-            transports: ['websocket', 'polling'], // Allow polling fallback
-            reconnectionAttempts: 3
-        });
-
-        socket.on('connect', () => {
-            console.log('📡 Connected to Real-time Notification Server');
-            if (notificationPollingInterval) {
-                clearInterval(notificationPollingInterval);
-                notificationPollingInterval = null;
-            }
-        });
-
-        socket.on('connect_error', (error) => {
-            console.warn('⚠️ Socket.IO connection failed, using polling fallback:', error.message);
-            startNotificationPolling();
-        });
-
-        socket.on('newNotification', (notification) => {
-            console.log('🔔 New Notification Received:', notification);
-            state.notifications.unshift(notification);
-            state.unreadCount++;
-            updateNotificationUI();
-
-            // Sound for new orders
-            if (notification.type === 'order') {
-                const audio = new Audio(ORDER_NOTIFICATION_SOUND);
-                audio.play().catch(e => console.warn('Audio playback blocked by browser'));
-            }
-
-            showToast(`New ${notification.type}: ${notification.title}`);
-        });
-    } catch (err) {
-        console.error('Socket setup error:', err);
-        startNotificationPolling();
-    }
+    // Vercel Serverless doesn't support WebSockets natively.
+    // Proceed directly to HTTP polling fallback to prevent wss:// connection errors.
+    startNotificationPolling();
 }
 
 function startNotificationPolling() {

@@ -205,11 +205,11 @@
                                 class="w-full h-full object-contain p-4 md:p-8 transition-transform duration-500 group-hover:scale-105">
                             <!-- Floating Action Buttons -->
                             <div class="absolute top-4 right-4 flex flex-col gap-3">
-                                <button
+                                <button onclick="toggleWishlist('${product._id}')"
                                     class="w-10 h-10 bg-white/90 backdrop-blur shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-slate-600 hover:text-red-500 hover:scale-110 active:scale-95 transition-all">
-                                    <i class="far fa-heart text-xl"></i>
+                                    <i class="fas fa-heart text-xl"></i>
                                 </button>
-                                <button
+                                <button onclick="shareProduct()"
                                     class="w-10 h-10 bg-white/90 backdrop-blur shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-slate-600 hover:text-amber-500 hover:scale-110 active:scale-95 transition-all">
                                     <i class="fas fa-share-alt"></i>
                                 </button>
@@ -253,44 +253,29 @@
                     </div>
                     <p class="text-[11px] md:text-xs text-slate-500 mb-6 font-medium">+ ₹49 Secured Packaging Fee</p>
 
-                    <!-- Dummy Variant Selector (DailyObjects Style) -->
-                    <div class="mb-8 block border-t border-b border-slate-100 py-6">
-                        <div class="mb-4">
-                            <span class="text-sm font-bold text-slate-800 tracking-wide uppercase">Color:</span>
-                            <span class="text-sm text-slate-500 ml-2">Midnight Black</span>
-                            <div class="flex gap-3 mt-3">
-                                <button
-                                    class="w-8 h-8 rounded-full bg-slate-900 ring-2 ring-offset-2 ring-slate-900 transition-all"></button>
-                                <button
-                                    class="w-8 h-8 rounded-full bg-blue-800 ring-2 ring-offset-2 ring-transparent hover:ring-slate-300 transition-all"></button>
-                                <button
-                                    class="w-8 h-8 rounded-full bg-red-600 ring-2 ring-offset-2 ring-transparent hover:ring-slate-300 transition-all"></button>
-                                <button
-                                    class="w-8 h-8 rounded-full bg-slate-200 ring-2 ring-offset-2 ring-transparent hover:ring-slate-300 transition-all"></button>
-                            </div>
-                        </div>
-                    </div>
+
 
                     <!-- Action Buttons (Sticky on Mobile, Normal on Desktop) -->
                     <div id="productActionsContainer"
-                        class="mb-6 z-40 fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:relative md:p-0 md:bg-transparent md:border-t-0 md:shadow-none transition-all duration-300 transform translate-y-full md:translate-y-0 opacity-0 md:opacity-100 active-actions">
+                        class="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.12)] z-[999] md:relative md:p-6 md:bg-white md:rounded-2xl md:border-t-0 md:shadow-sm md:z-auto md:mb-8"
+                        style="padding-bottom: calc(max(1rem, env(safe-area-inset-bottom)));">
                         <!-- Purchase Actions -->
-                        <div id="purchaseActions" class="flex gap-4">
+                        <div id="purchaseActions" class="flex gap-4 max-w-7xl mx-auto">
                             <button id="addToCartBtn"
-                                class="flex-1 bg-white border-2 border-slate-900 text-slate-900 py-3 md:py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-900 hover:text-white active:scale-95 transition-all text-sm md:text-base">
-                                <i class="fas fa-shopping-cart"></i> <span class="hidden sm:inline">Add to
-                                    Cart</span><span class="sm:hidden">Add</span>
+                                class="flex-1 bg-white border-2 border-slate-900 text-slate-900 py-3.5 md:py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-slate-900 hover:text-white active:scale-95 transition-all text-xs md:text-base uppercase tracking-wider">
+                                <i class="fas fa-shopping-bag"></i> <span class="hidden sm:inline">Add to
+                                    Cart</span><span class="sm:hidden">Add to Cart</span>
                             </button>
                             <button id="buyNowBtn"
-                                class="flex-1 bg-amber-500 text-white py-3 md:py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-600 active:scale-95 transition-all text-sm md:text-base">
+                                class="flex-1 bg-amber-500 text-white py-3.5 md:py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-amber-600 shadow-lg shadow-amber-500/30 active:scale-95 transition-all text-xs md:text-base uppercase tracking-wider">
                                 <i class="fas fa-bolt"></i> Buy Now
                             </button>
                         </div>
                         <!-- Notification Action -->
-                        <div id="notifyAction" class="hidden">
+                        <div id="notifyAction" class="hidden max-w-7xl mx-auto">
                             <button id="notifyBtn"
-                                class="w-full bg-slate-800 text-white py-3 md:py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-900 active:scale-95 transition-all outline-none text-sm md:text-base">
-                                <i class="fas fa-bell"></i> Notify Me
+                                class="w-full bg-slate-900 text-white py-3.5 md:py-4 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-black active:scale-95 transition-all text-sm md:text-base uppercase tracking-widest shadow-xl shadow-slate-900/20">
+                                <i class="fas fa-bell"></i> Notify Me When Available
                             </button>
                         </div>
                     </div>

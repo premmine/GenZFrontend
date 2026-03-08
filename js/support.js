@@ -483,17 +483,12 @@ async function loadTickets() {
         console.warn('Failed to load tickets', err);
     }
 }
+/* =========================================================
+   SUPPORT CENTER – support.js
+========================================================= */
 
-
-/* ------------------------------------------------
-   INIT
-   ------------------------------------------------ */
-if (typeof isLocal === 'undefined') {
-    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-}
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
-}
+// Production backend URL
+var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Basic init

@@ -1,9 +1,8 @@
 if (typeof isLocal === 'undefined') {
-    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
 }
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
-}
+// Production backend URL
+var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 const state = {
     currentPage: 'dashboard',
@@ -25,6 +24,14 @@ const state = {
         productsChange: 0,
         customers: 0,
         customersChange: 0
+    },
+    pagination: {
+        products: { currentPage: 1, limit: 10 },
+        orders: { currentPage: 1, limit: 10 },
+        customers: { currentPage: 1, limit: 10 },
+        reviews: { currentPage: 1, limit: 10 },
+        discounts: { currentPage: 1, limit: 10 },
+        offers: { currentPage: 1, limit: 10 }
     }
 };
 
@@ -621,21 +628,25 @@ async function apiFetch(endpoint, options = {}) {
 }
 
 async function fetchAllData() {
-    try {
-        await Promise.all([
-            fetchProducts(),
-            fetchOrders(),
-            fetchCustomers(),
-            fetchReviews(),
-            fetchDiscounts(),
-            fetchOfferVideos()
-        ]);
-        updateStats();
-    } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        showToast('Session expired. Please login again.', 'error');
-        // window.location.href = 'login.html';
-    }
+    console.log('🔄 Fetching all dashboard data...');
+    const fetchers = [
+        { name: 'Products', fn: fetchProducts },
+        { name: 'Orders', fn: fetchOrders },
+        { name: 'Customers', fn: fetchCustomers },
+        { name: 'Reviews', fn: fetchReviews },
+        { name: 'Discounts', fn: fetchDiscounts },
+        { name: 'Offer Videos', fn: fetchOfferVideos }
+    ];
+
+    const results = await Promise.allSettled(fetchers.map(f => f.fn()));
+
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`❌ Failed to fetch ${fetchers[index].name}:`, result.reason);
+        }
+    });
+
+    updateStats();
 }
 
 async function fetchProducts() {
@@ -945,15 +956,54 @@ function renderStatusBadge(status) {
 }
 
 function renderStars(rating) {
-    let stars = '';
+    const stars = [];
     for (let i = 1; i <= 5; i++) {
-        if (i <= rating) {
-            stars += '<i data-lucide="star" class="w-3 h-3 text-yellow-400 fill-current"></i>';
-        } else {
-            stars += '<i data-lucide="star" class="w-3 h-3 text-gray-300"></i>';
-        }
+        stars.push(`<i data-lucide="star" class="w-3.5 h-3.5 ${i <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}"></i>`);
     }
-    return stars;
+    return `<div class="flex gap-0.5">${stars.join('')}</div>`;
+}
+
+/**
+ * Generic Pagination Renderer
+ */
+function renderPagination(total, page, limit, onPageChange) {
+    const totalPages = Math.ceil(total / limit);
+    const start = (page - 1) * limit + 1;
+    const end = Math.min(total, page * limit);
+
+    if (total === 0) return '';
+
+    return `
+        <div class="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p class="text-sm text-gray-500">
+                Showing <span class="font-medium text-gray-900">${start}</span> to <span class="font-medium text-gray-900">${end}</span> of <span class="font-medium text-gray-900">${total}</span> results
+            </p>
+            <div class="flex items-center gap-2">
+                <button onclick="${onPageChange}(${page - 1})" 
+                        ${page <= 1 ? 'disabled' : ''} 
+                        class="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i> Previous
+                </button>
+                <div class="flex items-center gap-1">
+                    ${totalPages <= 5 ?
+            Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
+                            <button onclick="${onPageChange}(${p})" 
+                                    class="w-10 h-10 rounded-xl text-sm font-medium transition-all ${p === page ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-gray-600 hover:bg-gray-50'}">
+                                ${p}
+                            </button>
+                        `).join('')
+            :
+            `<span class="px-3 py-2 text-sm font-bold text-primary bg-indigo-50 rounded-lg">Page ${page} of ${totalPages}</span>`
+        }
+                </div>
+                <button onclick="${onPageChange}(${page + 1})" 
+                        ${page >= totalPages ? 'disabled' : ''} 
+                        class="px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                    Next <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 // ==========================================
@@ -961,30 +1011,33 @@ function renderStars(rating) {
 // ==========================================
 
 function renderProducts(container) {
+    const total = state.products.length;
+    const { currentPage, limit } = state.pagination.products;
+
     container.innerHTML = `
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Products</h1>
                 <p class="text-gray-500 mt-1">Manage your product inventory</p>
             </div>
-            <button onclick="openProductModal()" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            <button onclick="openProductModal()" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-primary/20">
                 <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                 Add New Product
             </button>
         </div>
         
         <!-- Filters & Search -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
             <div class="flex flex-col md:flex-row gap-4">
                 <div class="flex-1">
                     <div class="relative">
                         <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
                         <input type="text" id="product-search" placeholder="Search products..." 
-                                                        class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                                class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all">
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <select id="stock-filter" class="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                    <select id="stock-filter" class="px-4 py-2 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white font-medium text-gray-700">
                         <option value="all">All Stock</option>
                         <option value="in_stock">In Stock</option>
                         <option value="out_of_stock">Out of Stock</option>
@@ -994,32 +1047,27 @@ function renderProducts(container) {
         </div>
         
         <!-- Products Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">SKU</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <thead class="bg-gray-50/50">
+                        <tr class="border-b border-gray-100">
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Product</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">SKU</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Price</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Stock</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                            <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="products-table-body" class="divide-y divide-gray-100">
+                    <tbody id="products-table-body" class="divide-y divide-gray-50">
                         <!-- Dynamic Content -->
                     </tbody>
                 </table>
             </div>
             
-            <!-- Pagination -->
-            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                <p class="text-sm text-gray-500">Showing <span class="font-medium">1</span> to <span class="font-medium">${state.products.length}</span> of <span class="font-medium">${state.products.length}</span> results</p>
-                <div class="flex gap-2">
-                    <button class="px-3 py-1 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50" disabled>Previous</button>
-                    <button class="px-3 py-1 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Next</button>
-                </div>
+            <div id="products-pagination-container">
+                <!-- Pagination injected here -->
             </div>
         </div>
     `;
@@ -1027,47 +1075,69 @@ function renderProducts(container) {
     renderProductsTable();
 
     // Add event listeners
-    document.getElementById('product-search').addEventListener('input', filterProducts);
-    document.getElementById('stock-filter').addEventListener('change', filterProducts);
+    document.getElementById('product-search').addEventListener('input', () => {
+        state.pagination.products.currentPage = 1; // Reset to page 1 on search
+        filterProducts();
+    });
+    document.getElementById('stock-filter').addEventListener('change', () => {
+        state.pagination.products.currentPage = 1;
+        filterProducts();
+    });
 }
 
 function renderProductsTable(filteredProducts = null) {
     const products = filteredProducts || state.products;
+    const { currentPage, limit } = state.pagination.products;
     const tbody = document.getElementById('products-table-body');
+    const paginationContainer = document.getElementById('products-pagination-container');
+
+    if (!tbody) return;
 
     if (products.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" class="px-6 py-12 text-center">
                     <div class="flex flex-col items-center justify-center">
-                        <i data-lucide="package" class="w-12 h-12 text-gray-300 mb-4"></i>
-                        <p class="text-gray-500">No products found</p>
+                        <i data-lucide="package" class="w-12 h-12 text-gray-200 mb-4"></i>
+                        <p class="text-gray-500 font-medium">No products found</p>
                     </div>
                 </td>
             </tr>
         `;
+        if (paginationContainer) paginationContainer.innerHTML = '';
         lucide.createIcons();
         return;
     }
 
-    tbody.innerHTML = products.map(product => `
-        <tr class="hover:bg-gray-50 transition-colors">
+    // Apply local pagination
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const paginatedProducts = products.slice(start, end);
+
+    tbody.innerHTML = paginatedProducts.map(product => `
+        <tr class="hover:bg-gray-50/50 transition-colors group">
             <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
-                    <img src="${product.image}" alt="${product.name}" class="w-10 h-10 rounded-lg object-cover">
-                    <span class="font-medium text-gray-900">${product.name}</span>
+                    <div class="w-12 h-12 rounded-xl border border-gray-100 flex-shrink-0 bg-gray-50 overflow-hidden group-hover:border-primary/20 transition-all">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover">
+                    </div>
+                    <span class="font-semibold text-gray-900 group-hover:text-primary transition-colors">${product.name}</span>
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-600">${product.sku}</td>
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">${formatCurrency(product.price)}</td>
-            <td class="px-6 py-4 text-sm text-gray-600">${product.stock}</td>
+            <td class="px-6 py-4 text-sm text-gray-500 font-mono">${product.sku || 'N/A'}</td>
+            <td class="px-6 py-4 text-sm font-bold text-gray-900">${formatCurrency(product.price)}</td>
+            <td class="px-6 py-4">
+                <span class="text-sm font-medium ${product.stock <= 5 ? 'text-red-500' : 'text-gray-600'}">
+                    ${product.stock} units
+                </span>
+            </td>
             <td class="px-6 py-4">${renderStatusBadge(product.status)}</td>
             <td class="px-6 py-4 text-right">
-                <div class="flex items-center justify-end gap-2">
-                    <button onclick="editProduct('${product._id || product.id}')" class="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                <div class="flex items-center justify-end gap-1">
+                    <button onclick="editProduct('${product._id || product.id}')" class="p-2 text-gray-400 hover:text-primary hover:bg-indigo-50 rounded-xl transition-all" title="Edit">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
-                    <button onclick="deleteProduct('${product._id || product.id}')" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                    <button onclick="deleteProduct('${product._id || product.id}')" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>
@@ -1075,8 +1145,38 @@ function renderProductsTable(filteredProducts = null) {
         </tr>
     `).join('');
 
+    if (paginationContainer) {
+        paginationContainer.innerHTML = renderPagination(products.length, currentPage, limit, 'changeAdminPage.products');
+    }
+
     lucide.createIcons();
 }
+
+/**
+ * Page Change Coordinator
+ */
+const changeAdminPage = {
+    products: (page) => {
+        state.pagination.products.currentPage = page;
+        filterProducts(); // Re-filter to apply pagination to the filtered list
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    orders: (page) => {
+        state.pagination.orders.currentPage = page;
+        filterOrders(); // Re-filter to apply pagination to the filtered list
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    customers: (page) => {
+        state.pagination.customers.currentPage = page;
+        renderCustomersGrid();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    reviews: (page) => {
+        state.pagination.reviews.currentPage = page;
+        renderReviewsTable();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+};
 
 function filterProducts() {
     const search = document.getElementById('product-search').value.toLowerCase();
@@ -1302,11 +1402,11 @@ function renderOrders(container) {
                 <p class="text-gray-500 mt-1">Manage customer orders</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="showStatusProductDetails('delivered')" class="inline-flex items-center px-4 py-2 border border-green-200 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium">
+                <button onclick="showStatusProductDetails('delivered')" class="inline-flex items-center px-4 py-2 border border-green-200 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all text-sm font-bold">
                     <i data-lucide="package-check" class="w-4 h-4 mr-2"></i>
                     Delivered Details
                 </button>
-                <button onclick="showStatusProductDetails('returned')" class="inline-flex items-center px-4 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
+                <button onclick="showStatusProductDetails('returned')" class="inline-flex items-center px-4 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-xl hover:bg-orange-100 transition-all text-sm font-bold">
                     <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
                     Return Details
                 </button>
@@ -1314,16 +1414,16 @@ function renderOrders(container) {
         </div>
         
         <!-- Filters -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
             <div class="flex flex-wrap gap-4">
                 <div class="flex-1 min-w-[200px]">
                     <div class="relative">
                         <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
                         <input type="text" id="order-search" placeholder="Search orders..." 
-                            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                            class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all">
                     </div>
                 </div>
-                <select id="status-filter" class="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                <select id="status-filter" class="px-4 py-2 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white font-medium text-gray-700">
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
                     <option value="processing">Processing</option>
@@ -1336,57 +1436,95 @@ function renderOrders(container) {
         </div>
         
         <!-- Orders Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Order ID</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <thead class="bg-gray-50/50">
+                        <tr class="border-b border-gray-100">
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Order ID</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Customer</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Date</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Payment</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                            <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="orders-table-body" class="divide-y divide-gray-100">
+                    <tbody id="orders-table-body" class="divide-y divide-gray-50">
                         <!-- Dynamic Content -->
                     </tbody>
                 </table>
             </div>
+            <div id="orders-pagination-container"></div>
         </div>
     `;
 
     renderOrdersTable();
-    document.getElementById('order-search').addEventListener('input', filterOrders);
-    document.getElementById('status-filter').addEventListener('change', filterOrders);
+    document.getElementById('order-search').addEventListener('input', () => {
+        state.pagination.orders.currentPage = 1;
+        filterOrders();
+    });
+    document.getElementById('status-filter').addEventListener('change', () => {
+        state.pagination.orders.currentPage = 1;
+        filterOrders();
+    });
 }
 
 function renderOrdersTable(filteredOrders = null) {
     const orders = filteredOrders || state.orders;
+    const { currentPage, limit } = state.pagination.orders;
     const tbody = document.getElementById('orders-table-body');
+    const paginationContainer = document.getElementById('orders-pagination-container');
 
     if (!tbody) return;
 
-    tbody.innerHTML = orders.map(order => `
-        <tr class="hover:bg-gray-50 transition-colors">
-            <td class="px-6 py-4 text-sm font-medium text-primary">${order.id}</td>
+    if (orders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-6 py-12 text-center">
+                    <div class="flex flex-col items-center justify-center">
+                        <i data-lucide="shopping-cart" class="w-12 h-12 text-gray-200 mb-4"></i>
+                        <p class="text-gray-500 font-medium">No orders found</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        lucide.createIcons();
+        return;
+    }
+
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const paginatedOrders = orders.slice(start, end);
+
+    tbody.innerHTML = paginatedOrders.map(order => `
+        <tr class="hover:bg-gray-50/50 transition-colors">
+            <td class="px-6 py-4 text-sm font-bold text-primary">#${order.orderDisplayId || order.id}</td>
             <td class="px-6 py-4">
-                <div>
-                    <p class="text-sm font-medium text-gray-900">${order.customer}</p>
-                    <p class="text-xs text-gray-500">${order.email}</p>
+                <div class="flex flex-col">
+                    <p class="text-sm font-bold text-gray-900">${order.customer || 'Guest'}</p>
+                    <p class="text-xs text-gray-500">${order.email || 'No email'}</p>
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-600">${order.date}</td>
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
+            <td class="px-6 py-4 text-sm text-gray-600 font-medium">${order.date}</td>
+            <td class="px-6 py-4 text-sm font-bold text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.payment)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.status)}</td>
             <td class="px-6 py-4 text-right">
-                <button onclick="openOrderDetails('${order._id}')" class="text-primary hover:underline text-sm font-medium">View Info</button>
+                <button onclick="openOrderDetails('${order._id || order.id}')" 
+                        class="px-4 py-2 bg-indigo-50 text-primary rounded-xl text-xs font-bold hover:bg-primary hover:text-white transition-all">
+                    View Info
+                </button>
             </td>
         </tr>
     `).join('');
+
+    if (paginationContainer) {
+        paginationContainer.innerHTML = renderPagination(orders.length, currentPage, limit, 'changeAdminPage.orders');
+    }
+
+    lucide.createIcons();
 }
 
 function filterOrders() {
@@ -1822,46 +1960,85 @@ function showStatusProductDetails(status) {
 // ==========================================
 
 function renderCustomers(container) {
+    const total = state.customers.length;
+    const { currentPage, limit } = state.pagination.customers;
+
     container.innerHTML = `
         <div class="mb-8">
             <h1 class="text-2xl font-bold text-gray-900">Customers</h1>
             <p class="text-gray-500 mt-1">View and manage your registered customers</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            ${state.customers.map(customer => `
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                    <div class="flex items-center gap-4 mb-4">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                            ${customer.name ? customer.name.charAt(0).toUpperCase() : customer.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div class="min-w-0">
-                            <h3 class="font-bold text-gray-900 truncate">${customer.name || 'Anonymous'}</h3>
-                            <p class="text-sm text-gray-500 truncate">${customer.email}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-500 uppercase font-semibold">Orders</p>
-                            <p class="text-lg font-bold text-gray-900">${customer.orders || 0}</p>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-500 uppercase font-semibold">Spent</p>
-                            <p class="text-lg font-bold text-gray-900">$${(customer.spent || 0).toFixed(2)}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between">
-                        ${renderStatusBadge(customer.status || 'active')}
-                        <button onclick="openCustomerDetails('${customer._id}')" class="text-primary hover:underline text-sm font-semibold flex items-center gap-1">
-                            View Profile <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('')}
+        <div id="customers-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Grid injected here -->
+        </div>
+
+        <div id="customers-pagination-container" class="mt-8">
+            <!-- Pagination injected here -->
         </div>
     `;
+
+    renderCustomersGrid();
+}
+
+function renderCustomersGrid() {
+    const { currentPage, limit } = state.pagination.customers;
+    const container = document.getElementById('customers-grid-container');
+    const paginationContainer = document.getElementById('customers-pagination-container');
+
+    if (!container) return;
+
+    if (state.customers.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full bg-white p-12 rounded-2xl border border-gray-100 text-center">
+                <i data-lucide="users" class="w-12 h-12 text-gray-200 mx-auto mb-4"></i>
+                <p class="text-gray-500 font-medium">No customers found</p>
+            </div>
+        `;
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const paginatedCustomers = state.customers.slice(start, end);
+
+    container.innerHTML = paginatedCustomers.map(customer => `
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-xl transition-all group">
+            <div class="flex items-center gap-4 mb-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/20">
+                    ${customer.name ? customer.name.charAt(0).toUpperCase() : customer.email.charAt(0).toUpperCase()}
+                </div>
+                <div class="min-w-0">
+                    <h3 class="font-bold text-gray-900 truncate text-lg group-hover:text-primary transition-colors">${customer.name || 'Anonymous User'}</h3>
+                    <p class="text-sm text-gray-500 truncate font-medium">${customer.email}</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                    <p class="text-[10px] text-indigo-500 uppercase font-bold tracking-wider mb-1">Total Orders</p>
+                    <p class="text-lg font-black text-gray-900">${customer.orders || 0}</p>
+                </div>
+                <div class="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/50">
+                    <p class="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-1">Total Spent</p>
+                    <p class="text-lg font-black text-gray-900">${formatCurrency(customer.spent || 0)}</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-4 border-t border-gray-50">
+                ${renderStatusBadge(customer.status || 'active')}
+                <button onclick="openCustomerDetails('${customer._id}')" 
+                        class="px-4 py-2 bg-gray-50 text-primary hover:bg-primary hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+                    Profile <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    if (paginationContainer) {
+        paginationContainer.innerHTML = renderPagination(state.customers.length, currentPage, limit, 'changeAdminPage.customers');
+    }
 
     lucide.createIcons();
 }
@@ -1988,79 +2165,111 @@ async function toggleUserBlock(id) {
 function renderReviews(container) {
     container.innerHTML = `
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Reviews</h1>
-            <p class="text-gray-500 mt-1">Manage product reviews</p>
-        </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Reviews</h1>
+                <p class="text-gray-500 mt-1">Manage product reviews and feedback</p>
+            </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100">
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rating</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Comment</th>
-                            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="text-center px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Show on Home</th>
-                            <th class="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <thead class="bg-gray-50/50">
+                        <tr class="border-b border-gray-100">
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Product</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">User</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Rating</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Comment</th>
+                            <th class="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                            <th class="text-center px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Home Display</th>
+                            <th class="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        ${state.reviews.map(review => {
-        const product = state.products.find(p => p._id === review.product || p.id === review.product);
-        const productName = product ? product.name : review.product;
-        return `
-                            <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="px-6 py-4 text-sm font-medium text-gray-900">${productName}</td>
-                                <td class="px-6 py-4 text-sm text-gray-600">${review.name || 'Anonymous'}</td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-1">
-                                        ${renderStars(review.rating)}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">${review.comment}</td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-2">
-                                        ${review.isApproved ? '<span class="bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase">Approved</span>' : '<span class="bg-gray-100 text-gray-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase">Pending</span>'}
-                                        ${review.isFeatured ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter">Featured</span>' : ''}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex justify-center">
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" class="sr-only peer" ${review.isFeatured ? 'checked' : ''} 
-                                                   onchange="toggleReviewFeatured('${review._id || review.id}', ${review.isFeatured || false})">
-                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                                        </label>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        ${!review.isApproved ? `
-                                            <button onclick="approveReview('${review._id || review.id}')" class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Approve">
-                                                <i data-lucide="check" class="w-4 h-4"></i>
-                                            </button>
-                                            <button onclick="rejectReview('${review._id || review.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Reject">
-                                                <i data-lucide="x" class="w-4 h-4"></i>
-                                            </button>
-                                        ` : `
-                                            <button onclick="deleteReview('${review._id || review.id}')" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
-                                        `}
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-    }).join('')}
+                    <tbody id="reviews-table-body" class="divide-y divide-gray-50">
+                        <!-- Dynamic content -->
                     </tbody>
                 </table>
             </div>
+            <div id="reviews-pagination-container"></div>
         </div>
     `;
+
+    renderReviewsTable();
+}
+
+function renderReviewsTable() {
+    const { currentPage, limit } = state.pagination.reviews;
+    const tbody = document.getElementById('reviews-table-body');
+    const paginationContainer = document.getElementById('reviews-pagination-container');
+
+    if (!tbody) return;
+
+    if (state.reviews.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-6 py-12 text-center text-gray-400 italic">No reviews found</td>
+            </tr>
+        `;
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const paginatedReviews = state.reviews.slice(start, end);
+
+    tbody.innerHTML = paginatedReviews.map(review => {
+        const product = state.products.find(p => p._id === review.product || p.id === review.product);
+        const productName = product ? product.name : (review.productName || 'Unknown Product');
+
+        return `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 text-sm font-bold text-gray-900">${productName}</td>
+                <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-900">${review.name || 'Anonymous'}</span>
+                        <span class="text-[10px] text-gray-400 font-medium">${new Date(review.createdAt || Date.now()).toLocaleDateString()}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    ${renderStars(review.rating)}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                    <div class="max-w-xs truncate" title="${review.comment}">${review.comment}</div>
+                </td>
+                <td class="px-6 py-4">
+                    ${review.isApproved ?
+                '<span class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-green-100 text-green-700">Approved</span>' :
+                '<span class="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-amber-100 text-amber-700">Pending</span>'}
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex justify-center">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" ${review.isFeatured ? 'checked' : ''} 
+                                   onchange="toggleReviewFeatured('${review._id || review.id}', ${review.isFeatured})">
+                            <div class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-1">
+                        ${!review.isApproved ? `
+                            <button onclick="approveReview('${review._id || review.id}')" class="p-2 text-green-600 hover:bg-green-50 rounded-xl transition-all" title="Approve">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="deleteReview('${review._id || review.id}')" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (paginationContainer) {
+        paginationContainer.innerHTML = renderPagination(state.reviews.length, currentPage, limit, 'changeAdminPage.reviews');
+    }
 
     lucide.createIcons();
 }
@@ -2088,7 +2297,6 @@ async function toggleReviewFeatured(id, currentStatus) {
         const response = await authFetch(`${API_BASE_URL}/reviews/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            // If featuring, also ensure it's approved
             body: JSON.stringify({
                 isFeatured: newStatus,
                 isApproved: newStatus ? true : undefined,
@@ -2114,8 +2322,8 @@ async function rejectReview(id) {
         });
         if (!response.ok) throw new Error('Failed to reject review');
         showToast('Status updated!', 'success');
-        closeModal(); // Assuming hideStatusUpdateForm() is equivalent to closeModal() in this context
-        await fetchReviews(); // Refresh table
+        closeModal();
+        await fetchReviews();
     } catch (error) {
         console.error('Error rejecting review:', error);
     }
@@ -2148,45 +2356,52 @@ function renderDiscounts(container) {
                 <h1 class="text-2xl font-bold text-gray-900">Discounts & Promotions</h1>
                 <p class="text-gray-500 mt-1">Manage discount rules and coupons</p>
             </div>
-            <button onclick="openDiscountModal()" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">
+            <button onclick="openDiscountModal()" class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-primary/20">
                 <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                 Add Discount
             </button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            ${state.discounts.map(discount => `
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+            ${state.discounts.length === 0 ? `
+                <div class="col-span-full bg-white p-12 rounded-2xl border border-gray-100 text-center">
+                    <i data-lucide="percent" class="w-12 h-12 text-gray-200 mx-auto mb-4"></i>
+                    <p class="text-gray-500 font-medium">No discounts found</p>
+                </div>
+            ` : state.discounts.map(discount => `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-xl transition-all group">
                     <div class="flex items-start justify-between mb-4">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
-                            <i data-lucide="percent" class="w-6 h-6 text-white"></i>
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <i data-lucide="percent" class="w-7 h-7 text-white"></i>
                         </div>
                         ${renderStatusBadge(discount.status)}
                     </div>
                     
-                    <h3 class="text-lg font-bold text-gray-900 mb-1">${discount.code}</h3>
-                    <p class="text-sm text-gray-500 mb-4">
+                    <h3 class="text-xl font-black text-gray-900 mb-1 group-hover:text-primary transition-colors">${discount.code}</h3>
+                    <p class="text-sm text-gray-500 font-bold mb-4">
                         ${discount.type === 'percentage' ? `${discount.value}% OFF` :
-            discount.type === 'fixed' ? `₹${discount.value} OFF` :
+            discount.type === 'fixed' ? `${formatCurrency(discount.value)} OFF` :
                 'Buy X Get Y Free'}
                     </p>
                     
                     <div class="space-y-2 text-sm">
-                        <div class="flex justify-between text-gray-600">
-                            <span>Min. Order</span>
-                            <span class="font-medium">₹${discount.minOrder}</span>
+                        <div class="flex justify-between text-gray-500">
+                            <span class="font-medium">Min. Order</span>
+                            <span class="font-bold text-gray-900">${formatCurrency(discount.minOrder)}</span>
                         </div>
-                        <div class="flex justify-between text-gray-600">
-                            <span>Usage</span>
-                            <span class="font-medium">${discount.usage} times</span>
+                        <div class="flex justify-between text-gray-500">
+                            <span class="font-medium">Total Usage</span>
+                            <span class="font-bold text-gray-900">${discount.usage || 0} times</span>
                         </div>
                     </div>
                     
-                    <div class="flex gap-2 mt-6 pt-4 border-t border-gray-100">
-                        <button onclick="toggleDiscountStatus('${discount._id}')" class="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div class="flex gap-2 mt-6 pt-4 border-t border-gray-50">
+                        <button onclick="toggleDiscountStatus('${discount._id}')" 
+                                class="flex-1 px-3 py-2 text-xs font-bold border border-gray-100 rounded-xl hover:bg-indigo-50 hover:text-primary transition-all">
                             ${discount.status === 'active' ? 'Deactivate' : 'Activate'}
                         </button>
-                        <button onclick="deleteDiscount('${discount._id}')" class="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <button onclick="deleteDiscount('${discount._id}')" 
+                                class="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -2203,45 +2418,48 @@ function openDiscountModal() {
 
     modalContent.innerHTML = `
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-gray-900">Create Discount</h2>
-            <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            <h2 class="text-2xl font-black text-gray-900">Create Discount</h2>
+            <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-xl transition-all">
+                <i data-lucide="x" class="w-5 h-5 text-gray-400"></i>
             </button>
         </div>
 
-        <form id="discount-form" onsubmit="saveDiscount(event)">
+        <form id="discount-form" onsubmit="saveDiscount(event)" class="space-y-6">
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Discount Code</label>
-                    <input type="text" name="code" placeholder="e.g., SUMMER20" required
-                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all uppercase">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Discount Code</label>
+                    <input type="text" name="code" placeholder="SUMMER25" required
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all uppercase font-black text-lg">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Type</label>
+                        <select name="type" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none bg-white font-bold text-gray-700">
+                            <option value="percentage">Percentage (%)</option>
+                            <option value="fixed">Fixed Amount (₹)</option>
+                            <option value="bogo">Buy X Get Y</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Value</label>
+                        <input type="number" name="value" placeholder="20" required
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold">
+                    </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Discount Type</label>
-                    <select name="type" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
-                        <option value="percentage">Percentage (%)</option>
-                        <option value="fixed">Fixed Amount (₹)</option>
-                        <option value="bogo">Buy X Get Y</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Value</label>
-                    <input type="number" name="value" placeholder="20" required
-                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Order Amount (₹)</label>
-                    <input type="number" name="minOrder" placeholder="0"
-                        class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Minimum Order Amount (₹)</label>
+                    <input type="number" name="minOrder" placeholder="999"
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all font-bold">
                 </div>
             </div>
 
-            <div class="flex gap-3 mt-6">
-                <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">Create Discount</button>
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeModal()" 
+                        class="flex-1 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all font-bold">Cancel</button>
+                <button type="submit" 
+                        class="flex-1 px-4 py-3 bg-primary text-white rounded-xl hover:bg-indigo-700 transition-all font-bold shadow-lg shadow-primary/20">Create Rule</button>
             </div>
         </form>
     `;
@@ -2276,6 +2494,7 @@ async function saveDiscount(event) {
         await fetchDiscounts();
     } catch (error) {
         console.error('Error saving discount:', error);
+        showToast(error.message, 'error');
     }
 }
 
@@ -2320,13 +2539,11 @@ async function deleteDiscount(id) {
 
 async function fetchOfferVideos() {
     try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/offer-videos`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        state.offerVideos = await response.json();
+        const data = await apiFetch('/offer-videos');
+        state.offerVideos = data || [];
     } catch (error) {
         console.error('Error fetching offer videos:', error);
+        state.offerVideos = []; // Fallback to empty array
     }
 }
 
@@ -2568,10 +2785,10 @@ async function deleteOffer(id) {
 
 function renderSettings(container) {
     container.innerHTML = `
-    < div class= "mb-8" >
+        <div class="mb-8">
             <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
             <p class="text-gray-500 mt-1">Manage your store settings</p>
-        </div >
+        </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-3xl">
             <div class="p-6 border-b border-gray-100">
@@ -2583,36 +2800,35 @@ function renderSettings(container) {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
-                        <input type="text" value="GenziKart Store"
+                        <input type="text" name="storeName" value="GenziKart Store"
                             class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Store Email</label>
-                        <input type="email" value="contact@genzikart.com"
+                        <input type="email" name="storeEmail" value="contact@genzikart.com"
                             class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-                        <select class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
+                        <select name="currency" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none bg-white">
                             <option value="INR" selected>INR (₹)</option>
                             <option value="EUR">EUR (€)</option>
                             <option value="GBP">GBP (£)</option>
                             <option value="USD">USD ($)</option>
-
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)
-                            <input type="number" value="10" step="0.1"
-                                class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
-                            </div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                        <input type="number" name="taxRate" value="10" step="0.1"
+                            class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
                     </div>
+                </div>
 
-                    <div class="pt-4 border-t border-gray-100">
-                        <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                            Save Changes
-                        </button>
-                    </div>
+                <div class="pt-4 border-t border-gray-100">
+                    <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20 font-semibold">
+                        Save Changes
+                    </button>
+                </div>
             </form>
         </div>
     `;
@@ -2644,8 +2860,11 @@ function initCharts() {
 
     const revenueByDay = last7Days.map(date => {
         return state.orders
-            .filter(o => o.date === date || (o.createdAt && o.createdAt.startsWith(date)))
-            .reduce((sum, o) => sum + o.total, 0);
+            .filter(o => {
+                const orderDate = new Date(o.createdAt || o.date).toISOString().split('T')[0];
+                return orderDate === date;
+            })
+            .reduce((sum, o) => sum + (o.totalAmount || o.total || 0), 0);
     });
 
     const displayLabels = last7Days.map(d => {
@@ -2653,14 +2872,20 @@ function initCharts() {
         return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
     });
 
-    // 2. DATA AGGREGATION - CATEGORIES
+    // 2. DATA AGGREGATION - CATEGORIES (Weighted by Revenue)
     const categoryTotals = {};
     state.orders.forEach(order => {
+        // Only count placed/confirmed/shipped/delivered orders in stats, skip cancelled/returned if preferred
+        if (order.orderStatus === 'Cancelled' || order.status === 'cancelled') return;
+
         (order.items || []).forEach(item => {
-            // Find category from state.products or default to 'Other'
-            const product = state.products.find(p => p._id === item.productId || p.name === item.name);
+            // Find category from state.products or default to 'General'
+            const product = state.products.find(p => p._id === item.productId || (p.name && item.name && p.name.trim() === item.name.trim()));
             const category = product ? product.category : 'General';
-            categoryTotals[category] = (categoryTotals[category] || 0) + item.quantity;
+
+            // Weight by revenue (Price * Quantity) instead of just unit count
+            const itemRevenue = (item.price || 0) * (item.quantity || 1);
+            categoryTotals[category] = (categoryTotals[category] || 0) + itemRevenue;
         });
     });
 
@@ -2736,6 +2961,20 @@ function initCharts() {
                     legend: {
                         position: 'bottom',
                         labels: { usePointStyle: true, padding: 20 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed);
+                                }
+                                return label;
+                            }
+                        }
                     }
                 },
                 cutout: '70%'

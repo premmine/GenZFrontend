@@ -1,15 +1,14 @@
-if (typeof isLocal === 'undefined') {
-    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-}
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
-}
+/* =========================================
+   REGISTRATION JAVASCRIPT
+========================================= */
+
+// Production backend URL
+var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 const sendBtn = document.getElementById("sendOtpBtn");
 const verifyBtn = document.getElementById("verifyBtn");
 const otpSection = document.getElementById("otpSection");
 const otpInputs = document.querySelectorAll(".otp-input");
-
 
 const nameInput = document.getElementById("name");
 const emailInput = document.getElementById("email");

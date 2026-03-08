@@ -2,12 +2,8 @@
    PRODUCT DETAILS JAVASCRIPT
    ========================================================= */
 
-if (typeof isLocal === 'undefined') {
-    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-}
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
-}
+// Production backend URL
+var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -229,41 +225,25 @@ function renderProductDetails(product) {
         };
     }
 
+    const buyNowBtn = document.getElementById('buyNowBtn');
+    if (buyNowBtn) {
+        buyNowBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isLoggedIn()) {
+                showAuthModal("buy products directly");
+                return;
+            }
+            // Add to cart and redirect
+            addToCart(product);
+            window.location.href = 'cart.html';
+        };
+    }
+
     const notifyBtn = document.getElementById('notifyBtn');
     if (notifyBtn) {
         notifyBtn.onclick = () => handleNotifyMe(product._id);
     }
-}
-
-function initStickyCTA() {
-    const actionsContainer = document.getElementById('productActionsContainer');
-    const header = document.querySelector('nav');
-
-    if (!actionsContainer || window.innerWidth >= 768) return;
-
-    // We want the CTA to be sticky only when scrolling past the main image/price area
-    const sentinel = document.createElement('div');
-    sentinel.id = 'cta-sentinel';
-    actionsContainer.parentNode.insertBefore(sentinel, actionsContainer);
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
-                // Scrolled past, make sticky
-                actionsContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-[100]', 'p-4', 'bg-white', 'border-t', 'shadow-[0_-10px_30px_rgba(0,0,0,0.1)]');
-                actionsContainer.classList.remove('relative', 'opacity-0', 'translate-y-full');
-                actionsContainer.classList.add('opacity-100', 'translate-y-0');
-            } else {
-                // Scrolled back up, return to flow
-                actionsContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-[100]', 'p-4', 'bg-white', 'border-t', 'shadow-[0_-10px_30px_rgba(0,0,0,0.1)]');
-                actionsContainer.classList.add('relative');
-                // Reset animation classes so it doesn't flash
-                actionsContainer.classList.remove('opacity-0', 'translate-y-full', 'opacity-100', 'translate-y-0');
-            }
-        });
-    }, { rootMargin: '-100px 0px 0px 0px' }); // Offset for navbar
-
-    observer.observe(sentinel);
 }
 
 async function handleNotifyMe(productId) {

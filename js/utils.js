@@ -1,5 +1,12 @@
 // Utility Functions for GenziKart E-commerce
 
+// 🕊️ Suppress Tailwind CSS production warning (it's expected in this rapid-deployment setup)
+const originalWarn = console.warn;
+console.warn = (...args) => {
+    if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+    originalWarn(...args);
+};
+
 // Production backend URL
 var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 console.log(`🌐 API_BASE_URL set to: ${API_BASE_URL}`);

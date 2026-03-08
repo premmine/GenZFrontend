@@ -1,6 +1,4 @@
-if (typeof isLocal === 'undefined') {
-    var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-}
+
 // Production backend URL
 var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 
@@ -93,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initNotifications();
 });
 
-let socket;
 let notificationPollingInterval;
 const ORDER_NOTIFICATION_SOUND = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
 
@@ -119,73 +116,19 @@ function initNotifications() {
     fetchUnreadCount();
     fetchNotifications();
 
-    // Initialize Socket with Fallback
-    initAdminSocket();
-}
-
-function initAdminSocket() {
-    // Load Socket.IO client script dynamically if not present
-    if (typeof io === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.socket.io/4.7.4/socket.io.min.js';
-        script.onload = () => setupSocketConnection();
-        script.onerror = () => startNotificationPolling();
-        document.head.appendChild(script);
-    } else {
-        setupSocketConnection();
-    }
-}
-
-function setupSocketConnection() {
-    try {
-        const backendUrl = API_BASE_URL.replace('/api', '');
-        socket = io(backendUrl, {
-            transports: ['websocket', 'polling'], // Allow polling fallback
-            reconnectionAttempts: 3
-        });
-
-        socket.on('connect', () => {
-            console.log('📡 Connected to Real-time Notification Server');
-            if (notificationPollingInterval) {
-                clearInterval(notificationPollingInterval);
-                notificationPollingInterval = null;
-            }
-        });
-
-        socket.on('connect_error', (error) => {
-            console.warn('⚠️ Socket.IO connection failed, using polling fallback:', error.message);
-            startNotificationPolling();
-        });
-
-        socket.on('newNotification', (notification) => {
-            console.log('🔔 New Notification Received:', notification);
-            state.notifications.unshift(notification);
-            state.unreadCount++;
-            updateNotificationUI();
-
-            // Sound for new orders
-            if (notification.type === 'order') {
-                const audio = new Audio(ORDER_NOTIFICATION_SOUND);
-                audio.play().catch(e => console.warn('Audio playback blocked by browser'));
-            }
-
-            showToast(`New ${notification.type}: ${notification.title}`);
-        });
-    } catch (err) {
-        console.error('Socket setup error:', err);
-        startNotificationPolling();
-    }
+    // Standard Landing Update Mechanism (Vercel Compatible Polling)
+    startNotificationPolling();
 }
 
 function startNotificationPolling() {
     if (notificationPollingInterval) return;
-    console.log('🔄 Starting notification polling fallback (60s)...');
+    console.log('🔄 Dashboard Update Engine: Polling active (60s)...');
 
     // Initial fetch for fallback
     fetchUnreadCount();
 
     notificationPollingInterval = setInterval(() => {
-        console.log('📥 Polling for notifications...');
+        console.log('📥 Background update: Fetching notifications...');
         fetchUnreadCount();
         // If the notifications dashboard is open, refresh it too
         if (state.currentPage === 'notifications' && typeof loadNotificationsTable === 'function') {

@@ -21,10 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const phoneError = document.getElementById('phoneError');
     const whatsappError = document.getElementById('whatsappError');
 
-    // ── Pin Code helpers ──────────────────────────────────────────────
     function setPincodeStatus(state, text) {
         pincodeError.classList.add('hidden');
-        pincodeStatusDot.className = 'w-2.5 h-2.5 rounded-full flex-shrink-0';
+        // Reset dynamic color classes and animation
+        pincodeStatusDot.classList.remove('bg-gray-300', 'bg-yellow-400', 'animate-pulse', 'bg-green-500', 'bg-red-400');
+
         if (state === 'idle') {
             pincodeStatusDot.classList.add('bg-gray-300');
             pincodeStatusText.textContent = text || 'Awaiting PIN';

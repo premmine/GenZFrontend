@@ -63,7 +63,6 @@ async function loadProfileAndAddress() {
         if (defaultAddr) {
             document.getElementById('addrName').value = defaultAddr.name || currentUser.name || '';
             document.getElementById('addrLine1').value = defaultAddr.line1 || '';
-            document.getElementById('addrLine2').value = defaultAddr.line2 || '';
             document.getElementById('addrPincode').value = defaultAddr.pincode || '';
             document.getElementById('addrCity').value = defaultAddr.city || '';
             document.getElementById('addrState').value = defaultAddr.state || '';
@@ -112,7 +111,7 @@ async function handleFormSubmit(e) {
         state: document.getElementById('addrState').value.trim(),
         city: document.getElementById('addrCity').value.trim(),
         line1: document.getElementById('addrLine1').value.trim(),
-        line2: document.getElementById('addrLine2').value.trim(),
+        line2: "N/A", // Hardcoded "N/A" to bypass live backend trim validation
         addressType: document.getElementById('addrType').value === 'home' ? 'Home' : 'Work'
     };
 

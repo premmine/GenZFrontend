@@ -1,7 +1,5 @@
-
 // Production backend URL
 var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
-
 const state = {
     currentPage: 'dashboard',
     products: [],
@@ -803,7 +801,7 @@ function renderDashboard(container) {
                         <tbody class="divide-y divide-gray-100">
                             ${state.orders.slice(0, 5).map(order => `
                                 <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="py-3 text-sm font-medium text-gray-900">${order.id}</td>
+                                    <td class="py-3 text-sm font-medium text-gray-900">${order.id} • <span class="text-[10px] text-gray-400 font-normal mt-1 block">${order.date || new Date(order.createdAt).toLocaleDateString()}</span></td>
                                     <td class="py-3 text-sm text-gray-600">${order.customer}</td>
                                     <td class="py-3">${renderStatusBadge(order.status)}</td>
                                     <td class="py-3 text-sm text-gray-900 text-right font-medium">${formatCurrency(order.totalAmount || order.total)}</td>
@@ -1450,7 +1448,7 @@ function renderOrdersTable(filteredOrders = null) {
                     <p class="text-xs text-gray-500">${order.email || 'No email'}</p>
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-600 font-medium">${order.date}</td>
+            <td class="px-6 py-4 text-sm text-gray-600 font-medium">${order.date || new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
             <td class="px-6 py-4 text-sm font-bold text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.payment)}</td>
             <td class="px-6 py-4">${renderStatusBadge(order.status)}</td>
@@ -1639,8 +1637,8 @@ async function openOrderDetails(id) {
                             <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Courier:</span>
                             <span class="text-lg font-bold text-slate-800">${order.courierName || 'Genzi Logistics'}</span>
                         </div>
-                        <p class="text-xs text-slate-600 font-medium mt-1">Tracking ID: <span class="font-bold text-slate-900">${order.trackingId || '1112dxdfvgbgh'}</span> • <span class="text-[10px] text-slate-400">${order.estimatedDeliveryDate || '1 Mar — 3 Mar'}</span></p>
-                        <p class="text-[10px] text-slate-400">Est. Delivery: <span class="font-bold text-slate-700">${order.estimatedDeliveryDate || '1 Mar — 3 Mar'}</span></p>
+                        <p class="text-xs text-slate-600 font-medium mt-1">Tracking ID: <span class="font-bold text-slate-900">${order.trackingId || '1112dxdfvgbgh'}</span> • <span class="text-[10px] text-slate-400">Estimated delivery within 5 day</span></p>
+                        <p class="text-[10px] text-slate-400">Estimated delivery within 5 day</p>
                     </div>
                 </div>
 
@@ -1681,9 +1679,13 @@ async function openOrderDetails(id) {
     </div>
     
     <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100">
+        ${['DELIVERED', 'CANCELLED', 'RETURNED'].includes(currentStatus) ? `
+        <button onclick="closeModal()" class="w-full px-8 py-3.5 bg-[#f1f5f9] text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[11px] tracking-widest">Close</button>
+        ` : `
         <button onclick="closeModal()" class="px-8 py-3.5 bg-[#f1f5f9] text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase text-[11px] tracking-widest">Close</button>
-        <button onclick="cancelOrderAction('${order.id}')" class="px-8 py-3.5 border-2 border-red-50 text-red-500 font-black rounded-2xl hover:bg-red-50 transition-all uppercase text-[11px] tracking-widest">Canca. Order</button>
+        <button onclick="cancelOrderAction('${order.id}')" class="px-8 py-3.5 border-2 border-red-50 text-red-500 font-black rounded-2xl hover:bg-red-50 transition-all uppercase text-[11px] tracking-widest">Cancel Order</button>
         <button onclick="showStatusUpdateForm('${order.id}')" class="flex-1 px-8 py-3.5 bg-indigo-500 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-600 hover:-translate-y-0.5 transition-all uppercase text-[11px] tracking-widest text-center">Update Order Status</button>
+        `}
     </div>
     `;
 
@@ -1712,7 +1714,7 @@ async function cancelOrderAction(id) {
         const response = await authFetch(`${API_BASE_URL}/shipping/${id}/status`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderStatus: 'Cancelled', message: 'Order has been cancelled by Admin.' })
+            body: JSON.stringify({ status: 'Cancelled', message: 'Order has been cancelled by Admin.' })
         });
         if (!response.ok) throw new Error('Cancellation refusal from system');
         showToast('SUCCESS: Order status set to CANCELLED', 'success');
@@ -2063,9 +2065,12 @@ function openCustomerDetails(id) {
         </div>
         
         <div class="flex gap-3 mt-8">
-            <button onclick="closeModal()" class="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">Close Profile</button>
-            <button onclick="toggleUserBlock('${customer._id}')" class="flex-1 px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-colors font-medium">
+            <button onclick="closeModal()" class="flex-1 px-3 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">Close Profile</button>
+            <button onclick="toggleUserBlock('${customer._id}')" class="flex-1 px-3 py-2 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
                 ${customer.isBlocked ? 'Unblock User' : 'Block User'}
+            </button>
+            <button onclick="deleteCustomer('${customer._id}')" class="flex-1 px-3 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center gap-1">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
             </button>
         </div>
     `;
@@ -2097,6 +2102,25 @@ async function toggleUserBlock(id) {
         } catch (error) {
             console.error(`Error ${action}ing user:`, error);
             showToast(`Error: ${error.message}`, 'error');
+        }
+    }
+}
+
+async function deleteCustomer(id) {
+    if (confirm('DANGER: Are you sure you want to permanently delete this user? This action cannot be undone.')) {
+        try {
+            const response = await authFetch(`${API_BASE_URL}/users/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Failed to delete user');
+
+            showToast('User deleted successfully!', 'success');
+            closeModal();
+            await fetchCustomers();
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showToast('Error deleting user', 'error');
         }
     }
 }

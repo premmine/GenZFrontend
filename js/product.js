@@ -88,8 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const comment = document.getElementById('reviewComment').value.trim();
-        const area = document.getElementById('reviewArea')?.value.trim() || '';
-        const state = document.getElementById('reviewState')?.value.trim() || '';
 
         if (!comment) {
             showToast('Please add a comment', 'error');
@@ -101,9 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 method: 'POST',
                 body: JSON.stringify({
                     rating: currentRating,
-                    comment: comment,
-                    area: area,
-                    state: state
+                    comment: comment
                 })
             });
             showToast('Review submitted successfully!');
@@ -180,13 +176,10 @@ function renderProductDetails(product) {
         }
     };
 
-    // Sticky CTA Observer for mobile
-    setTimeout(() => initStickyCTA(), 500);
-
     // Highlights
     const highlights = product.highlights && product.highlights.length > 0
         ? product.highlights
-        : ["1 Year Manufacturer Warranty", "7 Days Replacement Policy", "Cash on Delivery Available", "Fast Shipping"];
+        : ["1 Year Manufacturer Warranty", "7 Days Replacement Policy", "Cash on Delivery Available", "Estimated delivery within 5 day"];
 
     document.getElementById('highlightsList').innerHTML = highlights.map(h => `
         <li class="flex items-start gap-3">

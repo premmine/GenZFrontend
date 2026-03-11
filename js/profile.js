@@ -144,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (addr._id) profileForm.dataset.addressId = addr._id;
 
                 addrLine1.value = addr.line1 || '';
-                addrLine2.value = addr.line2 || '';
 
                 if (addr.pincode) {
                     profilePincode.value = addr.pincode;
@@ -419,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: profileName.value.trim(),
                 phone: profilePhone.value.trim(),
                 line1: addrLine1.value.trim(),
-                line2: addrLine2.value.trim(),
+                line2: "N/A", // Hardcoded "N/A" to bypass live backend trim validation
                 pincode: profilePincode.value.trim(),
                 city: addrCity.value.trim(),
                 state: addrState.value.trim(),

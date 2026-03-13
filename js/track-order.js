@@ -107,14 +107,16 @@ function renderTimeline(order) {
     const container = document.getElementById('timelineContainer');
 
     // Status Hierarchy for progress
-    const stages = ['placed', 'processing', 'shipped', 'out_for_delivery', 'delivered'];
-    const currentStageIndex = stages.indexOf(order.status);
+    const stages = ['placed', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
+    const currentStatus = (order.status || order.orderStatus || 'placed').toLowerCase();
+    const currentStageIndex = stages.indexOf(currentStatus);
 
     const stepConfigs = {
         'placed': { title: 'Order Placed', desc: 'Success! Your order has been received.', icon: 'fa-shopping-bag' },
-        'processing': { title: 'Confirmed & Processing', desc: 'Our team is preparing your package.', icon: 'fa-cog' },
-        'shipped': { title: 'Shipped', desc: 'Your package is on its way to your city.', icon: 'fa-truck' },
-        'out_for_delivery': { title: 'Out for Delivery', desc: 'Delivery partner is arriving today!', icon: 'fa-motorcycle' },
+        'confirmed': { title: 'Confirmed', desc: 'Order confirmed and verified.', icon: 'fa-check-circle' },
+        'packed': { title: 'Packed', desc: 'Order packed and ready for dispatch.', icon: 'fa-box-open' },
+        'shipped': { title: 'Shipped', desc: 'Your package is on its way.', icon: 'fa-truck' },
+        'out_for_delivery': { title: 'Out for Delivery', desc: 'Partner is arriving today!', icon: 'fa-motorcycle' },
         'delivered': { title: 'Delivered', desc: 'Package handed over to you.', icon: 'fa-check-double' }
     };
 

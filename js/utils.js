@@ -3,11 +3,12 @@
 // 🕊️ Suppress Tailwind CSS production warning (it's expected in this rapid-deployment setup)
 const originalWarn = console.warn;
 console.warn = (...args) => {
-    if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+    const msg = args.map(a => String(a)).join(' ');
+    if (msg.includes('cdn.tailwindcss.com') || msg.includes('Tailwind CSS') || msg.includes('PostCSS plugin') || msg.includes('Tailwind CLI')) return;
     originalWarn(...args);
 };
 
-// Production backend URL
+// Updated backend URL — new deployment with all fixed routes
 var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
 console.log(`🌐 API_BASE_URL set to: ${API_BASE_URL}`);
 
@@ -180,13 +181,16 @@ async function apiFetch(endpoint, options = {}) {
         if (!response.ok) {
             // ✅ Handle Unauthorized (token expired or invalid)
             if (response.status === 401) {
-                console.warn('⚠️ Unauthorized access detected. Clearing session.');
-                localStorage.removeItem('token');
-                localStorage.removeItem('userEmail');
+                // Don't warn if it's a silent probe
+                if (!options.silent) {
+                    console.warn('⚠️ Unauthorized access detected. Clearing session.');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userEmail');
 
-                // Only redirect if we are not already on the login page to avoid loops
-                if (!window.location.pathname.includes('login.html')) {
-                    window.location.href = 'login.html?reason=expired';
+                    // Only redirect if we are not already on the login page to avoid loops
+                    if (!window.location.pathname.includes('login.html')) {
+                        window.location.href = 'login.html?reason=expired';
+                    }
                 }
             }
             throw new Error(data.message || data.error || 'API request failed');
@@ -194,7 +198,9 @@ async function apiFetch(endpoint, options = {}) {
 
         return data;
     } catch (error) {
-        console.error(`API Error (${endpoint}):`, error);
+        if (!options.silent) {
+            console.error(`API Error (${endpoint}):`, error);
+        }
         throw error;
     }
 }

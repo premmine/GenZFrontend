@@ -134,6 +134,7 @@ function createOrderCard(order) {
         'confirmed': { color: 'text-amber-600', bg: 'bg-amber-50', icon: 'fa-check', label: 'Confirmed' },
         'packed': { color: 'text-indigo-600', bg: 'bg-indigo-50', icon: 'fa-box-open', label: 'Packed' },
         'shipped': { color: 'text-blue-600', bg: 'bg-blue-50', icon: 'fa-truck', label: 'Shipped' },
+        'out_for_delivery': { color: 'text-indigo-600', bg: 'bg-indigo-50', icon: 'fa-motorcycle', label: 'Out for Delivery' },
         'delivered': { color: 'text-green-600', bg: 'bg-green-50', icon: 'fa-check-circle', label: 'Delivered' },
         'cancelled': { color: 'text-red-600', bg: 'bg-red-50', icon: 'fa-times-circle', label: 'Cancelled' },
         'returned': { color: 'text-purple-600', bg: 'bg-purple-50', icon: 'fa-undo', label: 'Returned' }

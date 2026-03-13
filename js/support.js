@@ -274,10 +274,10 @@ function renderTrackResult(order) {
         return;
     }
 
-    const statuses = ['placed', 'processing', 'shipped', 'delivered'];
+    const statuses = ['placed', 'confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
     const statusIndex = statuses.indexOf(status);
 
-    const steps = ['Placed', 'Processing', 'Shipped', 'Delivered'].map((step, i) => {
+    const steps = ['Placed', 'Confirmed', 'Packed', 'Shipped', 'Out For Delivery', 'Delivered'].map((step, i) => {
         const isDone = i < statusIndex;
         const isActive = i === statusIndex;
         const colorClass = isDone ? 'bg-green-500 text-white' : isActive ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-400';
@@ -412,9 +412,48 @@ async function submitTicket(e) {
     const type = document.getElementById('ticketType')?.value;
     const priority = document.getElementById('ticketPriority')?.value;
     const subject = document.getElementById('ticketSubject')?.value?.trim();
-    const details = document.getElementById('ticketDetails')?.value?.trim();
+    const description = document.getElementById('ticketDetails')?.value?.trim();
+    const orderSelect = document.getElementById('ticketOrderSelect');
 
-    if (!type || !subject || !details) { showSupportToast('Please fill all fields', 'error'); return; }
+    // Additional fields from selected order
+    const orderId = orderSelect?.value;
+    const selectedOption = orderSelect?.options[orderSelect.selectedIndex];
+    const productId = selectedOption?.getAttribute('data-product-id');
+    const productName = selectedOption?.getAttribute('data-product-name');
+    const productImage = selectedOption?.getAttribute('data-product-image');
+
+    // Short values for the backend (matches old category enum)
+    // Display labels are shown to users but NOT sent to backend
+    const issueTypeBackend = {
+        'delivery': 'Delivery',
+        'product': 'Product',
+        'payment': 'Payment',
+        'account': 'Account',
+        'other': 'Other'
+    };
+    // Human-readable display names (stored in issueType field on our new backend)
+    const issueTypeDisplay = {
+        'delivery': 'Delivery Issue',
+        'product': 'Product Quality',
+        'payment': 'Payment / Refund',
+        'account': 'Account Access',
+        'other': 'Other'
+    };
+
+    if (!type || !description) {
+        showSupportToast('Please fill all required fields', 'error');
+        return;
+    }
+
+    if (['delivery', 'product', 'payment'].includes(type) && !orderId) {
+        showSupportToast('Please select an order for this type of issue', 'error');
+        return;
+    }
+
+    if (!localStorage.getItem('token')) {
+        showSupportToast('Please login first to submit a ticket', 'error');
+        return;
+    }
 
     const btn = e.target.querySelector('[type=submit]');
     if (btn) {
@@ -423,35 +462,168 @@ async function submitTicket(e) {
     }
 
     try {
+        const isMongoId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+        const safeProductId = isMongoId(productId) ? productId : undefined;
+
         const ticketData = {
-            subject,
-            category: type === 'delivery' ? 'Delivery' :
-                type === 'product' ? 'Technical Issue' :
-                    type === 'payment' ? 'Payment' : 'Other',
-            message: details,
-            priority // Optional field in controller? No, I'll stick to model Category.
+            // Use the raw HTML select value (lowercase) as both issueType and category
+            // These match the old deployed backend's Ticket schema category enum exactly
+            issueType: type,          // 'delivery', 'product', 'payment', 'other'
+            category: type,           // same — old backend checks this field with enum
+            priority: priority || 'medium',
+            description: description,
+            subject: subject || issueTypeDisplay[type] || 'Support Request',
+            orderId: orderId || 'N/A',
+            productId: safeProductId,
+            productName: productName || 'N/A',
+            productImage: productImage || '',
+            message: description
         };
 
-        await apiFetch('/tickets', {
-            method: 'POST',
-            body: JSON.stringify(ticketData)
-        });
+        // ✅ Only endpoint that works on deployed backend (1.0.3-diag)
+        // Falls back to /support/create-ticket if /tickets fails for other reason
+        let submitted = false;
+        const endpoints = ['/tickets', '/support/create-ticket'];
+        let lastError = null;
 
-        showSupportToast('✅ Ticket submitted! We\'ll reply within 24 hours.', 'success');
+        for (const endpoint of endpoints) {
+            try {
+                await apiFetch(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(ticketData)
+                });
+                submitted = true;
+                break;
+            } catch (endpointErr) {
+                lastError = endpointErr;
+                console.warn(`Ticket endpoint ${endpoint} failed, trying next...`);
+            }
+        }
+
+        if (!submitted) {
+            // Show the actual validation error so we know what to fix
+            const msg = lastError?.message || 'All ticket endpoints failed';
+            throw new Error(msg);
+        }
+
+        showSupportToast('✅ Ticket submitted! Our team will respond soon.', 'success');
         closeTicketModal();
         document.getElementById('ticketForm')?.reset();
-
-        // Refresh ticket history if it exists
-        if (typeof loadTickets === 'function') loadTickets();
+        document.getElementById('orderSelectorContainer')?.classList.add('hidden');
+        document.getElementById('productPreview')?.classList.add('hidden');
+        loadTickets();
 
     } catch (err) {
-        console.error('Ticket error:', err);
-        showSupportToast(err.message || 'Failed to submit ticket', 'error');
+        console.error('Ticket submission error:', err);
+        showSupportToast(err.message || 'Failed to submit ticket. Please try again.', 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = 'Submit Ticket <i class="fas fa-paper-plane ml-2"></i>';
+            btn.innerHTML = 'Submit Ticket <i class="fas fa-paper-plane text-xs"></i>';
         }
+    }
+}
+
+// Global Order State
+let _cachedUserOrders = [];
+
+async function populateOrderDropdown() {
+    const select = document.getElementById('ticketOrderSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Loading your orders...</option>';
+    select.disabled = true;
+
+    try {
+        let orders = null;
+
+        // Try /user/orders first (newer backend), fall back to /orders (older backend)
+        try {
+            const result = await apiFetch('/user/orders');
+            orders = Array.isArray(result) ? result : null;
+        } catch (e) {
+            // Fallback: /orders returns only the user's own orders (filtered server-side by JWT)
+            console.log('Falling back to /orders for order dropdown...');
+            const result = await apiFetch('/orders');
+            const userEmail = localStorage.getItem('userEmail');
+            if (Array.isArray(result)) {
+                orders = userEmail ? result.filter(o => o.email === userEmail) : result;
+            }
+        }
+
+        _cachedUserOrders = orders || [];
+        select.disabled = false;
+        select.innerHTML = '<option value="">-- Choose an Order --</option>';
+
+        if (_cachedUserOrders.length === 0) {
+            select.innerHTML = '<option value="">No orders found</option>';
+            return;
+        }
+
+        _cachedUserOrders.forEach(order => {
+            const items = order.items || order.products || [];
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = order.id;
+                option.textContent = `${item.name || 'Product'} | Order: ${order.id}`;
+                option.setAttribute('data-product-id', item.productId || item._id || '');
+                option.setAttribute('data-product-name', item.name || 'Product');
+                option.setAttribute('data-product-image', item.image || item.productImage || '');
+                select.appendChild(option);
+            });
+        });
+
+    } catch (err) {
+        select.disabled = false;
+        select.innerHTML = '<option value="">Failed to load orders</option>';
+        console.warn('Failed to populate orders for ticket:', err.message);
+    }
+}
+
+function handleOrderSelection(orderId) {
+    const preview = document.getElementById('productPreview');
+    const select = document.getElementById('ticketOrderSelect');
+    if (!preview || !select) return;
+
+    if (!orderId) {
+        preview.classList.add('hidden');
+        return;
+    }
+
+    const selectedOption = select.options[select.selectedIndex];
+    const name = selectedOption.getAttribute('data-product-name');
+    const img = selectedOption.getAttribute('data-product-image');
+
+    document.getElementById('previewName').textContent = name;
+    document.getElementById('previewId').textContent = `Order #${orderId}`;
+    const previewImg = document.getElementById('previewImage');
+    if (previewImg) {
+        previewImg.src = typeof formatImageUrl === 'function' ? formatImageUrl(img) : img;
+    }
+
+    preview.classList.remove('hidden');
+}
+
+// Issue Type change listener — called from single DOMContentLoaded below
+function initIssueTypeListener() {
+    const typeSelect = document.getElementById('ticketType');
+    const orderContainer = document.getElementById('orderSelectorContainer');
+
+    if (typeSelect && orderContainer) {
+        typeSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            const needsOrder = ['delivery', 'product', 'payment'].includes(val);
+
+            if (needsOrder) {
+                orderContainer.classList.remove('hidden');
+                populateOrderDropdown();
+            } else {
+                orderContainer.classList.add('hidden');
+                document.getElementById('productPreview')?.classList.add('hidden');
+                const select = document.getElementById('ticketOrderSelect');
+                if (select) select.value = '';
+            }
+        });
     }
 }
 
@@ -459,44 +631,195 @@ async function loadTickets() {
     const container = document.getElementById('ticketHistoryContainer');
     if (!container) return;
 
+    if (!localStorage.getItem('token')) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-slate-400">
+                <i class="fas fa-lock text-3xl mb-3 block opacity-30"></i>
+                <p class="font-bold">Please login to view your tickets</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `<div class="flex items-center gap-2 py-4 text-slate-400 text-sm"><i class="fas fa-spinner fa-spin"></i> Loading tickets...</div>`;
+
     try {
-        const tickets = await apiFetch('/tickets');
+        // Correct path order: /tickets returns user-scoped for customers (role-based in backend)
+        let tickets = null;
+        const paths = ['/tickets', '/user/tickets'];
+
+        for (const path of paths) {
+            try {
+                const result = await apiFetch(path);
+                // Result could be an array directly or an object with a tickets property
+                tickets = Array.isArray(result) ? result : (result?.tickets || null);
+                if (tickets !== null) {
+                    console.log(`✅ Tickets loaded from: ${path} (${tickets.length} found)`);
+                    break;
+                }
+            } catch (e) {
+                console.warn(`Could not load tickets from ${path}`);
+                continue;
+            }
+        }
+
         if (!tickets || tickets.length === 0) {
-            container.innerHTML = `<p class="text-slate-400 text-sm italic">No tickets found.</p>`;
+            container.innerHTML = `
+                <div class="p-8 text-center text-slate-400">
+                    <i class="fas fa-ticket-alt text-3xl mb-3 block opacity-30"></i>
+                    <p class="font-bold">No tickets yet</p>
+                    <p class="text-sm mt-1">Submit a ticket if you need help with an order</p>
+                </div>`;
             return;
         }
 
-        container.innerHTML = tickets.map(t => `
-            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 mb-3">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">#${t.ticketId}</span>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${t.status === 'Open' ? 'bg-blue-100 text-blue-600' :
-                t.status === 'Resolved' ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-500'
-            }">${t.status}</span>
+        container.innerHTML = tickets.map(t => {
+            const replies = t.replies || [];
+            const isResolved = ['Resolved', 'Closed'].includes(t.status);
+            const statusColors = {
+                'Resolved': 'bg-green-100 text-green-600',
+                'In Progress': 'bg-amber-100 text-amber-600',
+                'Closed': 'bg-gray-200 text-gray-500',
+                'Open': 'bg-blue-100 text-blue-600'
+            };
+
+            return `
+            <div class="p-4 rounded-2xl bg-white border border-slate-100 mb-4 hover:shadow-lg transition-all" id="ticket-${t.ticketId}">
+                <div class="flex gap-4">
+                    ${t.productImage ? `
+                        <div class="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-white flex-shrink-0">
+                            <img src="${typeof formatImageUrl === 'function' ? formatImageUrl(t.productImage) : t.productImage}" 
+                                 class="w-full h-full object-cover" alt="Product"
+                                 onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-slate-300\'><i class=\'fas fa-box\'></i></div>'">
+                        </div>
+                    ` : ''}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">#${t.ticketId}</span>
+                                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded w-fit mt-1">${t.issueType || t.category || 'Support'}</span>
+                            </div>
+                            <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${statusColors[t.status] || statusColors['Open']}">${t.status}</span>
+                        </div>
+                        <h5 class="font-bold text-slate-800 text-sm mt-2">${t.subject || t.issueType || 'Support Ticket'}</h5>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2">${t.description || t.message || 'No description'}</p>
+                        ${t.orderId && t.orderId !== 'N/A' ? `<p class="text-[10px] text-indigo-500 mt-1 font-medium">Order: ${t.orderId}</p>` : ''}
+                        
+                        <!-- Thread Section -->
+                        <div id="thread-${t.ticketId}" class="hidden mt-4 pt-4 border-t border-slate-50 space-y-3">
+                            ${replies.length === 0 ? '<p class="text-xs text-slate-400 italic">No messages yet. Admin will reply soon.</p>' : ''}
+                            ${replies.map(r => `
+                                <div class="flex flex-col ${r.sender === 'admin' ? 'items-start' : 'items-end ml-auto'} max-w-[90%]">
+                                    <div class="p-3 rounded-2xl text-xs ${r.sender === 'admin' ? 'bg-indigo-50 text-indigo-700 rounded-tl-none' : 'bg-slate-100 text-slate-700 rounded-tr-none'}">
+                                        <p class="font-black text-[9px] uppercase mb-1 opacity-50">${r.sender === 'admin' ? 'Support Team' : 'You'}</p>
+                                        ${r.message}
+                                    </div>
+                                    <span class="text-[9px] text-slate-400 mt-1">${new Date(r.date || r.createdAt || Date.now()).toLocaleString()}</span>
+                                </div>
+                            `).join('')}
+
+                            ${!isResolved ? `
+                                <div class="mt-4 pt-4 border-t border-slate-50">
+                                    <textarea id="reply-text-${t.ticketId}" placeholder="Type your message to support..." 
+                                        class="w-full p-3 bg-slate-50 border-none rounded-xl text-xs focus:ring-1 focus:ring-indigo-500 outline-none resize-none h-20"></textarea>
+                                    <button onclick="sendTicketReply('${t.ticketId}', this)" 
+                                        class="mt-2 w-full py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                                        <i class="fas fa-paper-plane text-[10px]"></i> Send Message
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="mt-3 p-3 bg-green-50 rounded-xl">
+                                    <p class="text-xs text-green-600 font-bold"><i class="fas fa-check-circle mr-1"></i> This ticket has been ${t.status.toLowerCase()}. Open a new ticket if you need more help.</p>
+                                </div>
+                            `}
+                        </div>
+
+                        <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+                            <button onclick="toggleTicketThread('${t.ticketId}')" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                                <i class="fas fa-comments"></i> 
+                                ${replies.length > 0 ? `View Conversation (${replies.length})` : 'View Thread'}
+                            </button>
+                            <p class="text-[10px] text-slate-400 italic">${new Date(t.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
                 </div>
-                <h5 class="font-bold text-slate-800 text-sm">${t.subject}</h5>
-                <p class="text-xs text-slate-500 mt-1 line-clamp-2">${t.message}</p>
-                <p class="text-[10px] text-slate-400 mt-2 italic">${new Date(t.createdAt).toLocaleDateString()}</p>
             </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (err) {
-        console.warn('Failed to load tickets', err);
+        console.error('Failed to load tickets:', err);
+        container.innerHTML = `
+            <div class="p-8 text-center text-red-400">
+                <i class="fas fa-exclamation-triangle text-3xl mb-3 block"></i>
+                <p class="font-bold">Failed to load tickets</p>
+                <button onclick="loadTickets()" class="text-xs text-indigo-600 mt-2 underline">Try Again</button>
+            </div>`;
     }
 }
-/* =========================================================
-   SUPPORT CENTER – support.js
-========================================================= */
 
-// Production backend URL
-var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+function toggleTicketThread(id) {
+    const thread = document.getElementById(`thread-${id}`);
+    if (thread) thread.classList.toggle('hidden');
+}
 
+async function sendTicketReply(ticketId, btnEl) {
+    const textarea = document.getElementById(`reply-text-${ticketId}`);
+    const message = textarea?.value?.trim();
+    if (!message) {
+        showSupportToast('Please type a message first', 'error');
+        return;
+    }
+
+    // Use button element passed directly to avoid event context bugs
+    const btn = btnEl || document.querySelector(`button[onclick*="sendTicketReply('${ticketId}')"]`);
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    }
+
+    try {
+        // Correct endpoint: customers use /tickets/:id/reply (not admin route)
+        await apiFetch(`/tickets/${ticketId}/reply`, {
+            method: 'PUT',
+            body: JSON.stringify({ message })
+        });
+
+        showSupportToast('✅ Message sent to support team!', 'success');
+        textarea.value = '';
+        await loadTickets();
+        // Re-open the thread for the same ticket
+        const thread = document.getElementById(`thread-${ticketId}`);
+        if (thread) thread.classList.remove('hidden');
+    } catch (err) {
+        console.error('Reply error:', err);
+        showSupportToast(err.message || 'Failed to send reply. Please try again.', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml || '<i class="fas fa-paper-plane text-[10px]"></i> Send Message';
+        }
+    }
+}
+
+// ============================================================
+// SINGLE DOMContentLoaded — All initialization here
+// ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Basic init
+    // 1. Load User Profile
     loadUserProfile();
-    loadOrders();
-    loadTickets();
 
-    // Click outside modals to close
+    // 2. Load Recent Orders
+    loadOrders();
+
+    // 3. Load Support Tickets (only if logged in)
+    if (localStorage.getItem('token')) {
+        loadTickets();
+    }
+
+    // 4. Initialize Issue Type listener for ticket form
+    initIssueTypeListener();
+
+    // 5. Click outside modals to close
     window.addEventListener('click', function (e) {
         const returnModal = document.getElementById('returnModal');
         const ticketModal = document.getElementById('ticketModal');
@@ -506,12 +829,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === contactModal) closeContactModal();
     });
 
-    // Pre-fill tracker from URL param ?order=Ord-001
+    // 6. Pre-fill tracker from URL param ?order=Ord-001
     const params = new URLSearchParams(window.location.search);
     const orderParam = params.get('order');
     if (orderParam) {
         const inp = document.getElementById('trackOrderInput');
         if (inp) { inp.value = orderParam; trackOrder(); }
+    }
+
+    // 7. Real-time ticket updates via Socket.IO
+    if (window.socket) {
+        window.socket.on('newNotification', (notif) => {
+            if (notif.type === 'ticket' && localStorage.getItem('token')) {
+                loadTickets();
+            }
+        });
     }
 });
 
@@ -721,4 +1053,22 @@ window.closeProfileImageModal = closeProfileImageModal;
 window.updateProfileImage = updateProfileImage;
 window.previewAndUpload = previewAndUpload;
 window.saveDeviceImage = saveDeviceImage;
+
+// All initialization is handled in the single DOMContentLoaded above.
+// Global function exports for HTML onclick access
+window.submitTicket = submitTicket;
+window.submitReturn = submitReturn;
+window.submitContact = submitContact;
+window.sendTicketReply = sendTicketReply;
+window.loadTickets = loadTickets;
+window.toggleTicketThread = toggleTicketThread;
+window.trackOrder = trackOrder;
+window.openReturnModal = openReturnModal;
+window.closeReturnModal = closeReturnModal;
+window.openTicketModal = openTicketModal;
+window.closeTicketModal = closeTicketModal;
+window.openContactModal = openContactModal;
+window.closeContactModal = closeContactModal;
+window.prefillTrack = prefillTrack;
+window.handleOrderSelection = handleOrderSelection;
 

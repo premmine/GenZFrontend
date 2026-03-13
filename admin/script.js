@@ -9,6 +9,7 @@ const state = {
     discounts: [],
     offerVideos: [],
     notifications: [],
+    tickets: [],
     pageNotifications: [], // Store notifications for the main table
     unreadCount: 0,
     stats: {
@@ -27,7 +28,8 @@ const state = {
         customers: { currentPage: 1, limit: 10 },
         reviews: { currentPage: 1, limit: 10 },
         discounts: { currentPage: 1, limit: 10 },
-        offers: { currentPage: 1, limit: 10 }
+        offers: { currentPage: 1, limit: 10 },
+        tickets: { currentPage: 1, limit: 10 }
     }
 };
 
@@ -545,10 +547,12 @@ async function authFetch(url, options = {}) {
 
     // Redirect on unauthorized
     if (response.status === 401) {
-        console.error("🔒 Session expired or unauthorized, redirecting...");
-        localStorage.removeItem('token');
-        window.location.href = 'login.html';
-        return null;
+        if (!options.silent) {
+            console.error("🔒 Session expired or unauthorized, redirecting...");
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
+        return response; // Return even if 401 so caller can handle
     }
 
     return response;
@@ -576,7 +580,8 @@ async function fetchAllData() {
         { name: 'Customers', fn: fetchCustomers },
         { name: 'Reviews', fn: fetchReviews },
         { name: 'Discounts', fn: fetchDiscounts },
-        { name: 'Offer Videos', fn: fetchOfferVideos }
+        { name: 'Offer Videos', fn: fetchOfferVideos },
+        { name: 'Tickets', fn: fetchTickets }
     ];
 
     const results = await Promise.allSettled(fetchers.map(f => f.fn()));
@@ -735,6 +740,9 @@ function renderPage(page) {
         case 'offers':
             renderOffers(mainContent);
             break;
+        case 'tickets':
+            renderTickets(mainContent);
+            break;
         case 'notifications':
             renderNotificationsPage();
             break;
@@ -799,14 +807,36 @@ function renderDashboard(container) {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            ${state.orders.slice(0, 5).map(order => `
-                                <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="py-3 text-sm font-medium text-gray-900">${order.id} • <span class="text-[10px] text-gray-400 font-normal mt-1 block">${order.date || new Date(order.createdAt).toLocaleDateString()}</span></td>
-                                    <td class="py-3 text-sm text-gray-600">${order.customer}</td>
-                                    <td class="py-3">${renderStatusBadge(order.status)}</td>
-                                    <td class="py-3 text-sm text-gray-900 text-right font-medium">${formatCurrency(order.totalAmount || order.total)}</td>
-                                </tr>
-                            `).join('')}
+                            ${state.orders.slice(0, 5).map(order => {
+        const firstItem = order.items && order.items[0] ? order.items[0] : { name: 'Unknown', image: '' };
+        const itemsCount = order.items ? order.items.length : 0;
+        return `
+                                    <tr class="hover:bg-gray-50 transition-colors">
+                                        <td class="py-3">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex-shrink-0 overflow-hidden relative">
+                                                    <img src="${typeof formatImageUrl === 'function' ? formatImageUrl(firstItem.image) : firstItem.image}" 
+                                                         class="w-full h-full object-cover" 
+                                                         onerror="this.src='https://placehold.co/100x100?text=Order'">
+                                                    ${itemsCount > 1 ? `<span class="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${itemsCount}</span>` : ''}
+                                                </div>
+                                                <div class="flex flex-col">
+                                                    <span class="text-sm font-bold text-gray-900">${order.id}</span>
+                                                    <span class="text-[10px] text-gray-400 font-normal">${order.date || new Date(order.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">
+                                            <div class="flex flex-col">
+                                                <span class="text-sm font-medium text-gray-800">${order.customer}</span>
+                                                <span class="text-[10px] text-gray-400 truncate max-w-[120px]">${order.email}</span>
+                                            </div>
+                                        </td>
+                                        <td class="py-3">${renderStatusBadge(order.status || order.orderStatus)}</td>
+                                        <td class="py-3 text-sm text-gray-900 text-right font-black">${formatCurrency(order.totalAmount || order.total)}</td>
+                                    </tr>
+                                `;
+    }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -1115,6 +1145,11 @@ const changeAdminPage = {
     reviews: (page) => {
         state.pagination.reviews.currentPage = page;
         renderReviewsTable();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    tickets: (page) => {
+        state.pagination.tickets.currentPage = page;
+        renderTicketsTable();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 };
@@ -1439,27 +1474,42 @@ function renderOrdersTable(filteredOrders = null) {
     const end = start + limit;
     const paginatedOrders = orders.slice(start, end);
 
-    tbody.innerHTML = paginatedOrders.map(order => `
-        <tr class="hover:bg-gray-50/50 transition-colors">
-            <td class="px-6 py-4 text-sm font-bold text-primary">#${order.orderDisplayId || order.id}</td>
-            <td class="px-6 py-4">
-                <div class="flex flex-col">
-                    <p class="text-sm font-bold text-gray-900">${order.customer || 'Guest'}</p>
-                    <p class="text-xs text-gray-500">${order.email || 'No email'}</p>
-                </div>
-            </td>
-            <td class="px-6 py-4 text-sm text-gray-600 font-medium">${order.date || new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-            <td class="px-6 py-4 text-sm font-bold text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
-            <td class="px-6 py-4">${renderStatusBadge(order.payment)}</td>
-            <td class="px-6 py-4">${renderStatusBadge(order.status)}</td>
-            <td class="px-6 py-4 text-right">
-                <button onclick="openOrderDetails('${order._id || order.id}')" 
-                        class="px-4 py-2 bg-indigo-50 text-primary rounded-xl text-xs font-bold hover:bg-primary hover:text-white transition-all">
-                    View Info
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = paginatedOrders.map(order => {
+        const firstItem = order.items && order.items[0] ? order.items[0] : { name: 'Genzi Product', image: '' };
+        return `
+            <tr class="hover:bg-gray-50/50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex-shrink-0 overflow-hidden">
+                            <img src="${typeof formatImageUrl === 'function' ? formatImageUrl(firstItem.image) : firstItem.image}" 
+                                 class="w-full h-full object-cover" 
+                                 onerror="this.src='https://placehold.co/100x100?text=Order'">
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-primary">#${order.orderDisplayId || order.id}</span>
+                            <span class="text-[10px] text-gray-400 font-normal mt-1 block">${order.items?.length || 0} items</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex flex-col">
+                        <p class="text-sm font-bold text-gray-900">${order.customer || 'Guest'}</p>
+                        <p class="text-xs text-gray-500">${order.email || 'No email'}</p>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600 font-medium">${order.date || new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                <td class="px-6 py-4 text-sm font-bold text-gray-900">${formatCurrency(order.totalAmount || order.total)}</td>
+                <td class="px-6 py-4">${renderStatusBadge(order.paymentStatus || order.payment)}</td>
+                <td class="px-6 py-4">${renderStatusBadge(order.status || order.orderStatus)}</td>
+                <td class="px-6 py-4 text-right">
+                    <button onclick="openOrderDetails('${order._id || order.id}')" 
+                            class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-600 hover:text-white transition-all">
+                        Manage
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 
     if (paginationContainer) {
         paginationContainer.innerHTML = renderPagination(orders.length, currentPage, limit, 'changeAdminPage.orders');
@@ -2747,7 +2797,387 @@ async function deleteOffer(id) {
 }
 
 // ==========================================
-// 11. SETTINGS PAGE
+// 12. SUPPORT TICKETS MANAGEMENT
+// ==========================================
+
+async function fetchTickets() {
+    try {
+        // Try admin-specific route first, then fall back to universal /tickets
+        const paths = ['/admin/tickets', '/tickets'];
+        let data = null;
+
+        for (const path of paths) {
+            try {
+                const result = await apiFetch(path);
+                // Result could be an array directly
+                data = Array.isArray(result) ? result : null;
+                if (data !== null) {
+                    console.log(`✅ Admin Tickets loaded from: ${path} (${data.length} total)`);
+                    break;
+                }
+            } catch (e) {
+                console.warn(`Ticket path ${path} failed, trying next...`);
+                continue;
+            }
+        }
+
+        state.tickets = data || [];
+        if (state.currentPage === 'tickets') renderTicketsTable();
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        state.tickets = [];
+    }
+}
+
+function renderTickets(container) {
+    container.innerHTML = `
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Support Tickets</h1>
+                <p class="text-gray-500 mt-1">Manage customer inquiries and issues</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50/50">
+                        <tr class="border-b border-gray-100">
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ticket ID</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Customer Name</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Customer Email</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Customer Phone</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Order ID</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Product Image</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Product Name</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Issue Type</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Priority</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                            <th class="text-left px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Created Date</th>
+                            <th class="text-right px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-table-body" class="divide-y divide-gray-50">
+                        <!-- Dynamic Content -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="tickets-pagination-container"></div>
+        </div>
+    `;
+
+    renderTicketsTable();
+}
+
+function renderTicketsTable() {
+    const { currentPage, limit } = state.pagination.tickets;
+    const tbody = document.getElementById('tickets-table-body');
+    const paginationContainer = document.getElementById('tickets-pagination-container');
+
+    if (!tbody) return;
+
+    if (state.tickets.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="px-6 py-12 text-center text-gray-400 italic">No tickets found</td>
+            </tr>
+        `;
+        if (paginationContainer) paginationContainer.innerHTML = '';
+        return;
+    }
+
+    const start = (currentPage - 1) * limit;
+    const end = start + limit;
+    const paginatedTickets = state.tickets.slice(start, end);
+
+    tbody.innerHTML = paginatedTickets.map(ticket => `
+        <tr class="hover:bg-gray-50 transition-colors group text-xs">
+            <td class="px-4 py-4 font-bold text-primary">#${ticket.ticketId}</td>
+            <td class="px-4 py-4 font-bold text-gray-900">${ticket.customerName || ticket.name || 'N/A'}</td>
+            <td class="px-4 py-4 text-gray-500">${ticket.customerEmail || ticket.email || 'N/A'}</td>
+            <td class="px-4 py-4 font-bold text-primary/70">${ticket.customerPhone || ticket.phone || 'N/A'}</td>
+            <td class="px-4 py-4 font-bold text-gray-700">${ticket.orderId || 'N/A'}</td>
+            <td class="px-4 py-4">
+                ${ticket.productImage ? `<img src="${formatImageUrl(ticket.productImage)}" class="w-8 h-8 rounded shadow-sm border border-gray-100 object-cover">` : '-'}
+            </td>
+            <td class="px-4 py-4 font-medium text-gray-700 truncate max-w-[120px]" title="${ticket.productName}">${ticket.productName || 'N/A'}</td>
+            <td class="px-4 py-4 text-gray-600">${ticket.issueType || ticket.category || 'Other'}</td>
+            <td class="px-4 py-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${ticket.priority === 'high' ? 'bg-red-50 text-red-600' : ticket.priority === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}">
+                    ${ticket.priority || 'medium'}
+                </span>
+            </td>
+            <td class="px-4 py-4">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${ticket.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+            ticket.status === 'In Progress' ? 'bg-indigo-100 text-indigo-700' :
+                ticket.status === 'Closed' ? 'bg-gray-200 text-gray-600' : 'bg-gray-100 text-gray-700'
+        }">
+                    ${ticket.status}
+                </span>
+            </td>
+            <td class="px-4 py-4 font-bold text-gray-400 uppercase">
+                ${new Date(ticket.createdAt).toLocaleDateString()}
+            </td>
+            <td class="px-4 py-4 text-right">
+                <button onclick="openTicketModal('${ticket.ticketId}')" class="p-2 text-primary hover:bg-indigo-50 rounded-lg transition-all" title="View & Reply">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    if (paginationContainer) {
+        paginationContainer.innerHTML = renderPagination(state.tickets.length, currentPage, limit, 'changeAdminPage.tickets');
+    }
+
+    lucide.createIcons();
+}
+
+async function openTicketModal(id) {
+    try {
+        // Order optimized for current live backend transparency
+        const paths = [`/tickets/${id}`, `/admin/ticket/${id}`, `/tickets/admin/ticket/${id}`];
+        let ticket = null;
+
+        for (const path of paths) {
+            try {
+                ticket = await apiFetch(path, { silent: true });
+                if (ticket) break;
+            } catch (e) {
+                continue;
+            }
+        }
+
+        if (!ticket) return;
+
+        const modalContent = document.getElementById('modal-content');
+        modalContent.innerHTML = `
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                <div>
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${ticket.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+            } mb-1">${ticket.priority} Priority</span>
+                    <h2 class="text-xl font-bold text-gray-900">Ticket #${ticket.ticketId}</h2>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                <!-- User Info -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded-xl">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Customer</p>
+                        <p class="text-sm font-bold text-gray-900">${ticket.customerName || 'Unknown'}</p>
+                        <p class="text-[10px] text-gray-500">${ticket.customerEmail || ''}</p>
+                        <p class="text-[10px] text-primary/70 font-bold mt-1">${ticket.customerPhone || 'N/A'}</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-xl">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Issue Category</p>
+                        <p class="text-sm font-bold text-gray-900">${ticket.issueType || ticket.category || 'Support'}</p>
+                        <p class="text-xs text-gray-500">${new Date(ticket.createdAt).toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <!-- Order/Product Details (If available) -->
+                ${ticket.orderId ? `
+                <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <img src="${formatImageUrl(ticket.productImage)}" alt="Product" class="w-12 h-12 rounded-lg object-cover bg-white border border-amber-200">
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">${ticket.productName || 'Product Name'}</p>
+                            <p class="text-xs text-amber-600 font-medium">Order ID: #${ticket.orderId}</p>
+                        </div>
+                    </div>
+                    <button onclick="handleOpenRelatedOrder('${ticket.orderId}')" class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-amber-600 transition-colors">
+                        Open Order
+                    </button>
+                </div>
+                ` : ''}
+
+                <!-- Messages / Chat History -->
+                <div class="space-y-4">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Conversation</p>
+                    
+                    <!-- Original Message -->
+                    <div class="flex flex-col items-start max-w-[90%]">
+                        <div class="p-4 rounded-2xl bg-gray-100 text-sm text-gray-800">
+                            <p class="font-bold mb-1 text-xs text-gray-500">Customer Statement:</p>
+                            ${ticket.description || ticket.message}
+                        </div>
+                        <span class="text-[10px] text-gray-400 mt-1 ml-2">${new Date(ticket.createdAt).toLocaleTimeString()}</span>
+                    </div>
+
+                    <!-- Threaded Replies -->
+                    ${(ticket.replies || []).map(reply => `
+                        <div class="flex flex-col ${reply.sender === 'admin' ? 'items-end ml-auto' : 'items-start'} max-w-[90%]">
+                            <div class="p-4 rounded-2xl ${reply.sender === 'admin' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 text-gray-800'} text-sm">
+                                <p class="font-bold mb-1 text-xs opacity-70">${reply.sender === 'admin' ? 'Support Team' : ticket.customerName || 'Customer'}</p>
+                                ${reply.message}
+                            </div>
+                            <span class="text-[10px] text-gray-400 mt-1 mx-2">${new Date(reply.date || reply.createdAt || Date.now()).toLocaleString()}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- Admin Action Area -->
+                <div class="pt-4 border-t border-gray-100">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="flex-1">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Modify Status</label>
+                            <select id="update-ticket-status" 
+                                class="w-full px-4 py-2 bg-gray-50 border-none rounded-lg focus:ring-1 focus:ring-primary outline-none transition-all text-sm">
+                                <option value="Open" ${ticket.status === 'Open' ? 'selected' : ''}>Open</option>
+                                <option value="In Progress" ${ticket.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="Resolved" ${ticket.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                                <option value="Closed" ${ticket.status === 'Closed' ? 'selected' : ''}>Closed</option>
+                            </select>
+                            <button onclick="updateTicketStatus('${ticket.ticketId}', document.getElementById('update-ticket-status').value)" 
+                                class="mt-2 w-full py-2 bg-gray-600 text-white rounded-lg text-xs font-bold hover:bg-gray-700 transition-all">
+                                Update Status
+                            </button>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Quick Reply</label>
+                        <textarea id="admin-ticket-reply-${ticket.ticketId}" placeholder="Type your response here..." 
+                            class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-1 focus:ring-primary outline-none transition-all text-sm h-24 resize-none"></textarea>
+                        <button onclick="replyToTicket('${ticket.ticketId}')" 
+                            class="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+                            Send Reply & Notify Customer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('generic-modal').classList.remove('hidden');
+        lucide.createIcons();
+
+    } catch (err) {
+        showToast("Failed to load ticket details", 'error');
+    }
+}
+
+async function updateTicketStatus(id, status) {
+    // Status update button feedback
+    const updateBtn = document.querySelector(`button[onclick*="updateTicketStatus('${id}'"]`);
+    if (updateBtn) {
+        updateBtn.disabled = true;
+        updateBtn.innerHTML = '<span class="animate-spin inline-block mr-1">◌</span> Updating...';
+    }
+
+    try {
+        // Try all known route patterns with both PUT and PATCH methods
+        const attempts = [
+            { path: `/admin/ticket/${id}/status`, method: 'PUT' },
+            { path: `/tickets/${id}/status`, method: 'PUT' },
+            { path: `/admin/ticket/${id}/status`, method: 'PATCH' },
+            { path: `/tickets/${id}/status`, method: 'PATCH' },
+        ];
+
+        let success = false;
+        for (const { path, method } of attempts) {
+            try {
+                await apiFetch(path, {
+                    method,
+                    body: JSON.stringify({ status })
+                });
+                success = true;
+                break;
+            } catch (e) {
+                // silently try next
+                continue;
+            }
+        }
+
+        if (!success) {
+            showToast('Status update failed — please deploy the latest backend version', 'error');
+            return;
+        }
+
+        showToast(`✅ Ticket marked as ${status}`);
+        await fetchTickets();
+
+        // Refresh the open modal if it's showing this ticket
+        const modal = document.getElementById('generic-modal');
+        if (modal && !modal.classList.contains('hidden')) {
+            openTicketModal(id);
+        }
+
+    } catch (err) {
+        console.error('Failed to update status:', err);
+        showToast('Failed to update status', 'error');
+    } finally {
+        if (updateBtn) {
+            updateBtn.disabled = false;
+            updateBtn.innerHTML = 'Update Status';
+        }
+    }
+}
+
+async function replyToTicket(id) {
+    const textarea = document.getElementById(`admin-ticket-reply-${id}`);
+    const message = textarea?.value?.trim();
+
+    if (!message) {
+        showToast("Please enter a reply message", "error");
+        return;
+    }
+
+    const btn = document.querySelector(`button[onclick*="replyToTicket('${id}')"]`);
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin inline-block mr-1">◌</span> Sending...';
+    }
+
+    try {
+        // Try admin route first, then universal ticket route
+        let success = false;
+        const paths = [
+            `/admin/ticket/${id}/reply`,
+            `/tickets/${id}/reply`
+        ];
+
+        for (const path of paths) {
+            try {
+                await apiFetch(path, {
+                    method: 'PUT',
+                    body: JSON.stringify({ message })
+                });
+                success = true;
+                break;
+            } catch (e) {
+                console.warn(`Reply path ${path} failed, trying next...`);
+                continue;
+            }
+        }
+
+        if (!success) throw new Error('Failed to reach reply endpoint');
+
+        showToast("Reply sent successfully! Customer has been notified.");
+        if (textarea) textarea.value = '';
+
+        // Refresh modal to show new reply in conversation
+        openTicketModal(id);
+
+        // Refresh background table
+        fetchTickets();
+
+    } catch (err) {
+        console.error('Reply failed:', err);
+        showToast(err.message || "Failed to send reply", 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml || 'Send Reply &amp; Notify Customer';
+        }
+    }
+}
+
+// ==========================================
+// 13. SETTINGS PAGE
 // ==========================================
 
 function renderSettings(container) {
@@ -2772,7 +3202,7 @@ function renderSettings(container) {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Store Email</label>
-                        <input type="email" name="storeEmail" value="contact@genzikart.com"
+                        <input type="email" name="storeEmail" value="helpgenzikart@gmail.con"
                             class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
                     </div>
                     <div>
@@ -3212,5 +3642,28 @@ async function deleteNotificationPage(id) {
         fetchUnreadCount();
     } catch (err) {
         showToast("Failed to delete", 'error');
+    }
+}
+// --- Helper for Support Ticket related actions ---
+function handleOpenRelatedOrder(displayId) {
+    if (!displayId || displayId === 'N/A') {
+        showToast("No valid Order ID associated with this ticket", "error");
+        return;
+    }
+
+    // Try to find the order in our local state by displayId or _id
+    const order = state.orders.find(o =>
+        (o.orderDisplayId && o.orderDisplayId === displayId) ||
+        (o.id && o.id === displayId) ||
+        (o._id && o._id === displayId)
+    );
+
+    if (order) {
+        // Switch to orders view and open the modal
+        currentView = 'orders';
+        renderView('orders');
+        setTimeout(() => openOrderDetails(order._id), 100);
+    } else {
+        showToast(`Could not find order ${displayId} in current records.`, "warning");
     }
 }

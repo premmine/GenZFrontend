@@ -5,8 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login | GenziKart</title>
+    <script>
+        const _ow = console.warn;
+        console.warn = (...args) => {
+            const m = args.map(a => String(a)).join(' ');
+            if (m.includes('cdn.tailwindcss.com') || m.includes('Tailwind CSS') || m.includes('PostCSS plugin')) return;
+            _ow(...args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    <link rel="icon" href="../images/logo.jpg" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 
@@ -115,7 +124,7 @@
 
     <script>
         // Production backend URL
-        var API_BASE_URL = 'https://gen-z-backend.vercel.app/api';
+        var API_BASE_URL = 'http://localhost:5001/api';
         let adminEmail = "";
 
         // UI HELPERS

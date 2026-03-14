@@ -54,9 +54,26 @@
     </script>
 
     <link rel="stylesheet" href="styles.css">
+
+    <!-- Immediate Auth Protection -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('userRole');
+            if (!token || role !== 'admin') {
+                window.location.href = 'login.html';
+            }
+        })();
+    </script>
+    <style>
+        /* Prevent flash of unauthenticated content */
+        body { visibility: hidden; }
+        .auth-checked body { visibility: visible; }
+    </style>
 </head>
 
 <body class="bg-gray-50 text-slate-800 font-sans antialiased overflow-x-hidden">
+    <script>document.documentElement.classList.add('auth-checked');</script>
 
     <!-- Mobile Sidebar Overlay -->
     <div id="sidebar-overlay" class="fixed inset-0 bg-gray-900/50 z-40 hidden lg:hidden transition-opacity"
@@ -233,7 +250,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=2026.03.13.R5"></script>
+    <script src="script.js?v=2026.03.14.FIX-RESILIENT"></script>
 </body>
 
 </html>

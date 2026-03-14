@@ -67,13 +67,21 @@ async function loadOrders() {
 }
 
 function updateFilterCounts() {
+    if (!allOrders || !Array.isArray(allOrders)) return;
+    
+    // Normalize status for counting to match configurations
+    const getNormalizedStatus = (o) => {
+        let s = (o.status || o.orderStatus || 'pending').toLowerCase();
+        return s.replace(/\s+/g, '_'); // "out for delivery" -> "out_for_delivery"
+    };
+
     document.getElementById('count-all').textContent = `(${allOrders.length})`;
-    document.getElementById('count-delivered').textContent = `(${allOrders.filter(o => o.status === 'delivered').length})`;
-    document.getElementById('count-cancelled').textContent = `(${allOrders.filter(o => o.status === 'cancelled').length})`;
-    document.getElementById('count-returned').textContent = `(${allOrders.filter(o => o.status === 'returned').length})`;
+    document.getElementById('count-delivered').textContent = `(${allOrders.filter(o => getNormalizedStatus(o) === 'delivered').length})`;
+    document.getElementById('count-cancelled').textContent = `(${allOrders.filter(o => getNormalizedStatus(o) === 'cancelled').length})`;
+    document.getElementById('count-returned').textContent = `(${allOrders.filter(o => getNormalizedStatus(o) === 'returned').length})`;
 }
 
-function filterOrders(filter) {
+async function filterOrders(event, filter) {
     currentFilter = filter;
 
     // Update active UI
@@ -82,9 +90,11 @@ function filterOrders(filter) {
         btn.classList.add('text-slate-600', 'hover:bg-slate-50');
     });
 
-    const activeBtn = event.currentTarget;
-    activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-50');
-    activeBtn.classList.add('active', 'bg-amber-500', 'text-white', 'shadow-lg', 'shadow-amber-500/30');
+    if (event && event.currentTarget) {
+        const activeBtn = event.currentTarget;
+        activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-50');
+        activeBtn.classList.add('active', 'bg-amber-500', 'text-white', 'shadow-lg', 'shadow-amber-500/30');
+    }
 
     renderOrders();
 }
@@ -105,15 +115,19 @@ function renderOrders(ordersToRender = null) {
 
     // Apply Tab Filter if not manual search
     if (!ordersToRender && currentFilter !== 'all') {
-        orders = orders.filter(o => o.status === currentFilter);
+        orders = orders.filter(o => {
+            let s = (o.status || o.orderStatus || 'pending').toLowerCase();
+            s = s.replace(/\s+/g, '_');
+            return s === currentFilter;
+        });
     }
 
-    // Sorting
+    // Sorting - handle missing createdAt by falling back to date or _id
     const sortBy = document.getElementById('sortOrders')?.value;
     if (sortBy === 'recent') {
-        orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        orders.sort((a, b) => new Date(b.createdAt || b._id?.getTimestamp() || Date.now()) - new Date(a.createdAt || a._id?.getTimestamp() || Date.now()));
     } else {
-        orders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        orders.sort((a, b) => new Date(a.createdAt || a._id?.getTimestamp() || Date.now()) - new Date(b.createdAt || b._id?.getTimestamp() || Date.now()));
     }
 
     if (orders.length === 0) {
@@ -141,37 +155,34 @@ function createOrderCard(order) {
     };
 
     // Defensive lookup for status
-    let orderStatus = order.status;
-    if (!orderStatus || !statusConfig[orderStatus]) {
-        // Fallback to orderStatus field if status is missing or not in config
-        orderStatus = (order.orderStatus || 'pending').toLowerCase();
-    }
+    let orderStatus = (order.status || order.orderStatus || 'pending').toLowerCase();
+    orderStatus = orderStatus.replace(/\s+/g, '_'); // robust mapping for spaces
 
     const config = statusConfig[orderStatus] || statusConfig['pending'];
     const dateStr = new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
     // Buttons logic
     let actionButtons = '';
-    if (order.status === 'processing' || order.status === 'pending') {
+    if (orderStatus === 'processing' || orderStatus === 'pending' || orderStatus === 'placed') {
         actionButtons = `<button onclick="cancelOrder('${order._id}')" class="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all text-sm">Cancel Order</button>`;
     }
 
-    if (order.status === 'shipped' || order.status === 'processing' || order.status === 'pending') {
+    if (orderStatus === 'shipped' || orderStatus === 'processing' || orderStatus === 'pending' || orderStatus === 'confirmed' || orderStatus === 'placed') {
         actionButtons += `<button onclick="trackOrder('${order._id}')" class="bg-amber-500 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-amber-600 transition-all text-sm shadow-md shadow-amber-500/20">Track Order</button>`;
     }
 
-    if (order.status === 'delivered') {
+    if (orderStatus === 'delivered') {
         actionButtons = `
             <button onclick="returnOrder('${order._id}')" class="bg-amber-100/50 text-amber-700 px-6 py-2.5 rounded-xl font-bold hover:bg-amber-100 transition-all text-sm">Return / Replace</button>
             <button onclick="rateProduct('${order._id}')" class="bg-white border border-slate-200 text-slate-600 px-6 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all text-sm">Rate Product</button>
         `;
     }
 
-    if (order.status === 'returned') {
+    if (orderStatus === 'returned') {
         actionButtons = `<button onclick="refundStatus('${order._id}')" class="bg-purple-50 text-purple-600 px-6 py-2.5 rounded-xl font-bold hover:bg-purple-100 transition-all text-sm">Refund Status</button>`;
     }
 
-    if (order.status === 'cancelled' || order.status === 'delivered') {
+    if (orderStatus === 'cancelled' || orderStatus === 'delivered') {
         actionButtons += `<button onclick="reorder('${order._id}')" class="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition-all text-sm">Reorder</button>`;
     }
 

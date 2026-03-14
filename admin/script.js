@@ -61,22 +61,48 @@ function formatImageUrl(url) {
     return url;
 }
 
+/**
+ * Robust UI Feedback - Toast Notifications
+ */
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-amber-500' : 'bg-indigo-600';
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : type === 'warning' ? 'alert-triangle' : 'info';
+
+    toast.className = `${bgColor} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-300 min-w-[280px] z-[9999]`;
+    toast.innerHTML = `
+        <i data-lucide="${icon}" class="w-5 h-5"></i>
+        <p class="text-sm font-bold flex-1">${message}</p>
+        <button onclick="this.parentElement.remove()" class="hover:opacity-70 transition-opacity">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    `;
+
+    container.appendChild(toast);
+    lucide.createIcons({ props: { "data-lucide": ["check-circle", "alert-circle", "alert-triangle", "info", "x"] } });
+
+    // Auto remove
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.classList.add('animate-out', 'fade-out', 'slide-out-to-right-8');
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 4000);
+}
+
+function showModalAlert(message, type = 'info') {
+    showToast(message, type);
+}
+
 
 // ==========================================
 // 2. INITIALIZATION
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Load initial data from backend (Check session first)
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('userRole');
-
-    if (!token || role !== 'admin') {
-        console.warn("🚫 Unauthorized access, redirecting to admin login...");
-        window.location.href = 'login.html';
-        return;
-    }
-
     lucide.createIcons();
     updateAdminProfile();
     fetchAllData();
